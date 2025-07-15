@@ -11,7 +11,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Create blueprint
-minecraft_server_bp = Blueprint('minecraft_server', __name__, url_prefix='/api/server')
+minecraft_server_bp = Blueprint('minecraft_server', __name__, url_prefix='/server')
 
 def admin_required(f):
     @wraps(f)
