@@ -212,16 +212,16 @@ def build_server():
         
         # Stop existing server if running
         build_log.append("Stopping existing server...")
-        run_command("/usr/bin/sudo /bin/systemctl stop minecraft.service")
+        run_command("/bin/systemctl stop minecraft.service")
         
         # Ensure minecraft directory exists
         build_log.append("Setting up minecraft directory...")
-        run_command(f"/usr/bin/sudo /bin/mkdir -p {MINECRAFT_DIR}")
+        run_command(f"/bin/mkdir -p {MINECRAFT_DIR}")
         
         # Download Minecraft Server Jar
 
         url = get_minecraft_server_jar_url(minecraft_version)
-        dl_result = run_command(f"/usr/bin/sudo /usr/bin/curl -L -o '{MINECRAFT_DIR}/server.jar' '{url}'")
+        dl_result = run_command(f"/usr/bin/curl -L -o '{MINECRAFT_DIR}/server.jar' '{url}'")
         if not dl_result['success']:
             return jsonify({
                 'error': f'Failed to download Minecraft Server: {dl_result["stderr"]}',
