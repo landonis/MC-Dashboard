@@ -1,18 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { 
-  Play, 
-  Square, 
-  RotateCcw, 
-  Settings, 
-  Monitor, 
-  HardDrive,
-  Memory,
-  AlertCircle,
-  CheckCircle,
-  Loader2,
-  Terminal,
-  Download
-} from 'lucide-react'
+import { Play, Square, RotateCcw, Settings, Monitor, HardDrive, MemoryStick as Memory, AlertCircle, CheckCircle, Loader2, Terminal, Download } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import api from '../services/api'
 
