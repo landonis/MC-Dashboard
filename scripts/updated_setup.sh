@@ -91,6 +91,26 @@ else
     log "Minecraft user already exists"
 fi
 
+sudo mkdir -p "$MINECRAFT_DIR"
+
+log "[INFO] Creating group '$MINECRAFT_GROUP' if it doesn't exist..."
+if ! getent group "$MINECRAFT_GROUP" > /dev/null; then
+  sudo groupadd "$MINECRAFT_GROUP"
+  log "[INFO] Group '$MINECRAFT_GROUP' created."
+else
+  log "[INFO] Group '$MINECRAFT_GROUP' already exists."
+fi
+
+log "[INFO] Adding users to group '$MINECRAFT_GROUP'..."
+sudo usermod -aG "$MINECRAFT_GROUP" "$MINECRAFT_USER"
+sudo usermod -aG "$MINECRAFT_GROUP" "$SERVICE_USER"
+
+log "[INFO] Assigning ownership of $MINECRAFT_DIR to user '$MINECRAFT_USER' and group '$MINECRAFT_GROUP'..."
+sudo chown -R "$MINECRAFT_USER:$MINECRAFT_GROUP" "$MINECRAFT_DIR"
+
+log "[INFO] Setting directory permissions to group-writable and setting group ID bit..."
+sudo chmod -R 775 "$MINECRAFT_DIR"
+sudo find "$MINECRAFT_DIR" -type d -exec chmod g+s {} \;
 
 # Install rclone if missing
 log "Installing rclone..."
