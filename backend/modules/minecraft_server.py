@@ -127,25 +127,25 @@ def start_server():
         if not os.path.exists('/opt/minecraft'):
             return jsonify({'error': 'Server not built yet'}), 400
         
-        result = run_command("/usr/bin/sudo -u dashboardapp /bin/systemctl start minecraft.service")
+        result = run_command("/bin/systemctl start minecraft.service")
         
         if result['success']:
             return jsonify({'message': 'Server started successfully'})
         else:
             return jsonify({
-                'error': f'Failed to start server: {result["stderr"]}'
+                'error': f'Failed to start server, user: {os.getlogin()}: {result["stderr"]}'
             }), 500
     
     except Exception as e:
         logger.error(f"Start server error: {str(e)}")
-        return jsonify({'error': 'Failed to start server'}), 500
+        return jsonify({'error': 'Failed to start server, user: {os.getlogin()}'}), 500
 
 @minecraft_server_bp.route('/stop', methods=['POST'])
 @admin_required
 def stop_server():
     """Stop Minecraft server"""
     try:
-        result = run_command("sudo systemctl stop minecraft.service")
+        result = run_command("/bin/sudo /bin/systemctl stop minecraft.service")
         
         if result['success']:
             return jsonify({'message': 'Server stopped successfully'})
