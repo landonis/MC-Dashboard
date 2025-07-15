@@ -34,6 +34,9 @@ def admin_required(f):
 def run_command(cmd, cwd=None):
     """Run shell command safely and return result"""
     try:
+        env = os.environ.copy()
+        env["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
         result = subprocess.run(
             cmd, 
             shell=True, 
@@ -127,7 +130,7 @@ def start_server():
         if not os.path.exists('/opt/minecraft'):
             return jsonify({'error': 'Server not built yet'}), 400
         
-        result = run_command("/bin/systemctl start minecraft.service")
+        result = run_command("/usr/bin/sudo /bin/systemctl start minecraft.service")
         
         if result['success']:
             return jsonify({'message': 'Server started successfully'})
@@ -145,7 +148,7 @@ def start_server():
 def stop_server():
     """Stop Minecraft server"""
     try:
-        result = run_command("/bin/sudo /bin/systemctl stop minecraft.service")
+        result = run_command("/usr/bin/sudo /bin/systemctl stop minecraft.service")
         
         if result['success']:
             return jsonify({'message': 'Server stopped successfully'})
@@ -163,7 +166,7 @@ def stop_server():
 def restart_server():
     """Restart Minecraft server"""
     try:
-        result = run_command("sudo systemctl restart minecraft.service")
+        result = run_command("/usr/bin/sudo /bin/systemctl restart minecraft.service")
         
         if result['success']:
             return jsonify({'message': 'Server restarted successfully'})
