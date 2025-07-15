@@ -127,7 +127,7 @@ def start_server():
         if not os.path.exists('/opt/minecraft'):
             return jsonify({'error': 'Server not built yet'}), 400
         
-        result = run_command("/bin/systemctl start minecraft.service")
+        result = run_command("/usr/bin/sudo -u dashboardapp /bin/systemctl start minecraft.service")
         
         if result['success']:
             return jsonify({'message': 'Server started successfully'})
