@@ -218,7 +218,7 @@ def build_server():
         # Install Fabric server
         build_log.append("Installing Fabric server...")
         install_result = run_command(
-            f"/usr/bin/java -jar fabric-installer-{fabric_version}.jar server -mcversion {minecraft_version} -downloadMinecraft",
+            f"/usr/bin/java -jar {MINECRAFT_DIR}/fabric-installer-{fabric_version}.jar server -mcversion {minecraft_version} -downloadMinecraft",
             cwd=MINECRAFT_DIR
         )
         
