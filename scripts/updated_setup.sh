@@ -12,6 +12,7 @@ MINECRAFT_USER="minecraft"
 MINECRAFT_DIR="/opt/minecraft"
 LOG_FILE="/var/log/dashboard-setup.log"
 DOMAIN_NAME="${DOMAIN_NAME:-localhost}"
+MINECRAFT_GROUP="mcgroup"
 
 # Logging function
 log() {
