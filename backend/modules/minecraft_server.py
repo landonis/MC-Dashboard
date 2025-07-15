@@ -212,16 +212,16 @@ def build_server():
         
         # Stop existing server if running
         build_log.append("Stopping existing server...")
-        run_command("/bin/systemctl stop minecraft.service")
+        run_command("/usr/bin/sudo /bin/systemctl stop minecraft.service")
         
         # Ensure minecraft directory exists
         build_log.append("Setting up minecraft directory...")
-        run_command(f"/bin/mkdir -p {MINECRAFT_DIR}")
+        run_command(f"/usr/bin/sudo /bin/mkdir -p {MINECRAFT_DIR}")
 
         # Set permissions
         build_log.append("Setting permissions...")
-        run_command(f"/bin/chown -R {MINECRAFT_USER}:{MINECRAFT_USER} {MINECRAFT_DIR}")
-        run_command(f"/bin/chmod -R 755 {MINECRAFT_DIR}")
+        run_command(f"/usr/bin/sudo /bin/chown -R {MINECRAFT_USER}:{MINECRAFT_USER} {MINECRAFT_DIR}")
+        run_command(f"/usr/bin/sudo /bin/chmod -R 755 {MINECRAFT_DIR}")
         
         # Download Minecraft Server Jar
 
