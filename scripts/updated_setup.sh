@@ -165,6 +165,10 @@ fi
 echo "MINECRAFT_DIR=/opt/minecraft" >> "$INSTALL_DIR/.env"
 echo "MINECRAFT_USER=minecraft" >> "$INSTALL_DIR/.env"
 
+# Let $SERVICE_USER write during the build step
+chown -R $SERVICE_USER: $MINECRAFT_DIR
+chmod -R 755 $MINECRAFT_DIR
+
 # Grant dashboardapp passwordless sudo access for managing minecraft.service
 log "Configuring sudo permissions for dashboardapp to manage Minecraft service..."
 
