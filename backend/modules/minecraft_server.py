@@ -10,6 +10,12 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+from dotenv import load_dotenv
+load_dotenv()
+
+MINECRAFT_DIR = os.getenv("MINECRAFT_DIR", "/opt/minecraft")
+MINECRAFT_USER = os.getenv("MINECRAFT_USER", "minecraft")
+
 # Create blueprint
 minecraft_server_bp = Blueprint('minecraft_server', __name__, url_prefix='/server')
 
