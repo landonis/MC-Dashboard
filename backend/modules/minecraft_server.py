@@ -19,6 +19,20 @@ MINECRAFT_USER = os.getenv("MINECRAFT_USER", "minecraft")
 # Create blueprint
 minecraft_server_bp = Blueprint('minecraft_server', __name__, url_prefix='/server')
 
+def get_minecraft_server_jar_url(version: str) -> str:
+    try:
+        manifest_url = "https://launchermeta.mojang.com/mc/game/version_manifest.json"
+        manifest = requests.get(manifest_url, timeout=10).json()
+
+        version_info = next((v for v in manifest["versions"] if v["id"] == version), None)
+        if not version_info:
+            raise ValueError(f"Version {version} not found in Mojang manifest")
+
+        version_metadata = requests.get(version_info["url"], timeout=10).json()
+        return version_metadata["downloads"]["server"]["url"]
+    except Exception as e:
+        raise RuntimeError(f"Failed to get server.jar URL for {version}: {e}")
+
 def admin_required(f):
     @wraps(f)
     @jwt_required()
@@ -67,6 +81,8 @@ def run_command(cmd, cwd=None):
             'stderr': str(e),
             'returncode': -1
         }
+
+
 
 @minecraft_server_bp.route('/status', methods=['GET'])
 @admin_required
@@ -206,6 +222,16 @@ def build_server():
         build_log.append("Setting permissions...")
         run_command(f"chown -R {MINECRAFT_USER}:{MINECRAFT_USER} {MINECRAFT_DIR}")
         run_command(f"chmod -R 755 {MINECRAFT_DIR}")
+
+        # Download Minecraft Server Jar
+
+        url = get_minecraft_server_jar_url(minecraft_version)
+        dl_result = run_command(f"/usr/bin/curl -L -o '{MINECRAFT_DIR}/server.jar' '{url}'")
+        if not dl_result['success']:
+            return jsonify({
+                'error': f'Failed to download Minecraft Server: {download_result["stderr"]}',
+                'log': build_log
+            }), 500
         
         # Download Fabric installer
         build_log.append(f"Downloading Fabric installer for Minecraft {minecraft_version}...")
@@ -217,19 +243,6 @@ def build_server():
         if not download_result['success']:
             return jsonify({
                 'error': f'Failed to download Fabric installer: {download_result["stderr"]}',
-                'log': build_log
-            }), 500
-        
-        # Install Fabric server
-        build_log.append("Installing Fabric server...")
-        install_result = run_command(
-            f"/usr/bin/java -jar {MINECRAFT_DIR}/fabric-installer-{fabric_version}.jar server -mcversion {minecraft_version} -downloadMinecraft",
-            cwd=MINECRAFT_DIR
-        )
-        
-        if not install_result['success']:
-            return jsonify({
-                'error': f'Failed to install Fabric server: {install_result["stderr"]}',
                 'log': build_log
             }), 500
         
@@ -264,7 +277,7 @@ Type=simple
 User={MINECRAFT_USER}
 Group={MINECRAFT_USER}
 WorkingDirectory={MINECRAFT_DIR}
-ExecStart=/usr/bin/java -Xmx{memory_gb}G -Xms{memory_gb}G -jar {MINECRAFT_DIR}/fabric-server-launcher.jar nogui
+ExecStart=/usr/bin/java -Xmx{memory_gb}G -jar {MINECRAFT_DIR}/fabric-installer-{fabric_version}.jar nogui
 Restart=always
 RestartSec=10
 StandardOutput=journal
