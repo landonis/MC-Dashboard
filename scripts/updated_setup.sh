@@ -8,6 +8,8 @@ set -e
 REPO_URL="https://github.com/landonis/MC-dashboard"
 INSTALL_DIR="/opt/dashboard-app"
 SERVICE_USER="dashboardapp"
+MINECRAFT_USER="minecraft"
+MINECRAFT_DIR="/opt/minecraft"
 LOG_FILE="/var/log/dashboard-setup.log"
 DOMAIN_NAME="${DOMAIN_NAME:-localhost}"
 
@@ -82,16 +84,13 @@ fi
 
 # Create minecraft user and directory
 log "Setting up minecraft user and directory..."
-if ! id "minecraft" &>/dev/null; then
-    useradd -r -s /bin/false minecraft
+if ! id "$MINECRAFT_USER" &>/dev/null; then
+    useradd -r -s /bin/false "$MINECRAFT_USER"
     log "Minecraft user created"
 else
     log "Minecraft user already exists"
 fi
 
-mkdir -p /opt/minecraft
-chown -R minecraft:minecraft /opt/minecraft
-chmod -R 755 /opt/minecraft
 
 # Install rclone if missing
 log "Installing rclone..."
@@ -221,6 +220,32 @@ RestartSec=10
 [Install]
 WantedBy=multi-user.target
 EOF
+
+# Create Minecraft systemd service template (will be activated when server is built)
+log "Creating Minecraft systemd service template..."
+cat > /etc/systemd/system/minecraft.service <<EOF
+[Unit]
+Description=Minecraft Server
+After=network.target
+
+[Service]
+Type=simple
+User=$MINECRAFT_USER
+Group=$MINECRAFT_USER
+WorkingDirectory=$MINECRAFT_DIR
+ExecStart=/usr/bin/java -Xmx2G -Xms2G -jar server.jar nogui
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Don't enable the service yet - it will be enabled when server is built
+systemctl daemon-reload
+log "Minecraft service template created (not enabled until server is built)"
 
 # Reload systemd and enable services
 systemctl daemon-reload

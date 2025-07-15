@@ -185,16 +185,15 @@ def build_server():
         build_log.append("Stopping existing server...")
         run_command("systemctl stop minecraft.service")
         
-        # Create minecraft user and directory
-        build_log.append("Setting up minecraft user and directory...")
-        run_command("id -u minecraft &>/dev/null || useradd -r -s /bin/false minecraft")
-        run_command("mkdir -p /opt/minecraft")
+        # Ensure minecraft directory exists
+        build_log.append("Setting up minecraft directory...")
+        run_command(f"mkdir -p {MINECRAFT_DIR}")
         
         # Download Fabric installer
         build_log.append(f"Downloading Fabric installer for Minecraft {minecraft_version}...")
         fabric_url = f"https://maven.fabricmc.net/net/fabricmc/fabric-installer/{fabric_version}/fabric-installer-{fabric_version}.jar"
         
-        installer_path = f"/opt/minecraft/fabric-installer-{fabric_version}.jar"
+        installer_path = f"{MINECRAFT_DIR}/fabric-installer-{fabric_version}.jar"
         download_result = run_command(f"wget -O '{installer_path}' '{fabric_url}'")
         
         if not download_result['success']:
@@ -207,7 +206,7 @@ def build_server():
         build_log.append("Installing Fabric server...")
         install_result = run_command(
             f"java -jar fabric-installer-{fabric_version}.jar server -mcversion {minecraft_version} -downloadMinecraft",
-            cwd="/opt/minecraft"
+            cwd=MINECRAFT_DIR
         )
         
         if not install_result['success']:
@@ -218,7 +217,7 @@ def build_server():
         
         # Accept EULA
         build_log.append("Accepting Minecraft EULA...")
-        with open('/opt/minecraft/eula.txt', 'w') as f:
+        with open(f'{MINECRAFT_DIR}/eula.txt', 'w') as f:
             f.write('eula=true\n')
         
         # Create server.properties
@@ -233,13 +232,13 @@ online-mode=true
 white-list=false
 motd=Minecraft Server managed by Dashboard
 """
-        with open('/opt/minecraft/server.properties', 'w') as f:
+        with open(f'{MINECRAFT_DIR}/server.properties', 'w') as f:
             f.write(server_properties.strip())
         
         # Set permissions
         build_log.append("Setting permissions...")
-        run_command("chown -R minecraft:minecraft /opt/minecraft")
-        run_command("chmod -R 755 /opt/minecraft")
+        run_command(f"chown -R {MINECRAFT_USER}:{MINECRAFT_USER} {MINECRAFT_DIR}")
+        run_command(f"chmod -R 755 {MINECRAFT_DIR}")
         
         # Create systemd service
         build_log.append("Creating systemd service...")
@@ -249,9 +248,9 @@ After=network.target
 
 [Service]
 Type=simple
-User=minecraft
-Group=minecraft
-WorkingDirectory=/opt/minecraft
+User={MINECRAFT_USER}
+Group={MINECRAFT_USER}
+WorkingDirectory={MINECRAFT_DIR}
 ExecStart=/usr/bin/java -Xmx{memory_gb}G -Xms{memory_gb}G -jar fabric-server-launch.jar nogui
 Restart=always
 RestartSec=10
