@@ -169,9 +169,8 @@ echo "MINECRAFT_USER=minecraft" >> "$INSTALL_DIR/.env"
 # Grant dashboardapp passwordless sudo access for managing minecraft.service
 log "Configuring sudo permissions for dashboardapp to manage Minecraft service..."
 
-SUDOERS_FILE="/etc/sudoers.d/dashboardapp-minecraft"
 cat <<EOF > "$SUDOERS_FILE"
-dashboardapp ALL=(ALL) NOPASSWD: /bin/systemctl start minecraft.service, /bin/systemctl stop minecraft.service, /bin/systemctl restart minecraft.service, /bin/systemctl status minecraft.service, /bin/cp /opt/minecraft/* /etc/systemd/system/minecraft.service, /bin/rm /opt/minecraft/*, /bin/chown /opt/minecraft, /bin/chmod /opt/minecraft, /bin/mkdir /opt/minecraft
+dashboardapp ALL=(ALL) NOPASSWD: /bin/systemctl start minecraft.service, /bin/systemctl stop minecraft.service, /bin/systemctl restart minecraft.service, /bin/systemctl status minecraft.service, /bin/cp /opt/minecraft/* /etc/systemd/system/minecraft.service, /bin/rm /opt/minecraft/*, /bin/chown /opt/minecraft/*, /bin/chmod /opt/minecraft/*, /bin/mkdir /opt/minecraft/*, /usr/bin/curl /opt/minecraft/*
 EOF
 
 chmod 440 "$SUDOERS_FILE"
