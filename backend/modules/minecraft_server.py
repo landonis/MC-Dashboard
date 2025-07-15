@@ -189,6 +189,7 @@ def build_server():
         data = request.get_json()
         minecraft_version = data.get('minecraft_version', '1.20.1')
         fabric_version = data.get('fabric_version', '0.14.21')
+        installer_version = '1.0.3'
         memory_gb = data.get('memory_gb', 2)
         
         build_log = []
@@ -203,10 +204,10 @@ def build_server():
         
         # Download Fabric installer
         build_log.append(f"Downloading Fabric installer for Minecraft {minecraft_version}...")
-        fabric_url = f"https://maven.fabricmc.net/net/fabricmc/fabric-installer/{fabric_version}/fabric-installer-{fabric_version}.jar"
+        fabric_url = f"https://meta.fabricmc.net/v2/versions/loader/{minecraft_version}/{fabric_version}/{installer_version}/server/jar"
         
         installer_path = f"{MINECRAFT_DIR}/fabric-installer-{fabric_version}.jar"
-        download_result = run_command(f"/usr/bin/wget -O '{installer_path}' '{fabric_url}'")
+        download_result = run_command(f"/usr/bin/curl -L -o '{installer_path}' '{fabric_url}'")
         
         if not download_result['success']:
             return jsonify({
