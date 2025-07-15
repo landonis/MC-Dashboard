@@ -219,12 +219,12 @@ def import_world():
                 os.rename(downloaded_path, temp_path)
             
             # Extract to minecraft directory
-            extract_path = "/opt/minecraft"
+            extract_path = MINECRAFT_DIR
             with zipfile.ZipFile(temp_path, 'r') as zipf:
                 zipf.extractall(extract_path)
             
             # Set proper permissions
-            run_command(f"chown -R minecraft:minecraft {extract_path}")
+            run_command(f"chown -R {MINECRAFT_USER}:{MINECRAFT_USER} {extract_path}")
             
             return jsonify({
                 'message': f'World imported successfully from {backup_filename}'
