@@ -195,7 +195,7 @@ def build_server():
         
         # Stop existing server if running
         build_log.append("Stopping existing server...")
-        run_command("systemctl stop minecraft.service")
+        run_command("/bin/systemctl stop minecraft.service")
         
         # Ensure minecraft directory exists
         build_log.append("Setting up minecraft directory...")
@@ -278,8 +278,8 @@ WantedBy=multi-user.target
         
         # Reload systemd and enable service
         build_log.append("Enabling systemd service...")
-        run_command("systemctl daemon-reload")
-        run_command("systemctl enable minecraft.service")
+        run_command("/bin/systemctl daemon-reload")
+        run_command("/bin/systemctl enable minecraft.service")
         
         build_log.append("Server build completed successfully!")
         
@@ -374,7 +374,7 @@ def get_directory_size(path):
 def check_service_enabled():
     """Check if minecraft service is enabled"""
     try:
-        result = run_command("systemctl is-enabled minecraft.service")
+        result = run_command("/bin/systemctl is-enabled minecraft.service")
         return result['success'] and result['stdout'].strip() == 'enabled'
     except:
         return False
