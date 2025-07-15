@@ -218,6 +218,11 @@ def build_server():
         build_log.append("Setting up minecraft directory...")
         run_command(f"mkdir -p {MINECRAFT_DIR}")
 
+        # Set permissions
+        build_log.append("Setting permissions...")
+        run_command(f"chown -R {MINECRAFT_USER}:{MINECRAFT_USER} {MINECRAFT_DIR}")
+        run_command(f"chmod -R 755 {MINECRAFT_DIR}")
+        
         # Download Minecraft Server Jar
 
         url = get_minecraft_server_jar_url(minecraft_version)
@@ -289,10 +294,7 @@ WantedBy=multi-user.target
         run_command(f"/usr/bin/sudo /bin/cp {temp_service_path} /etc/systemd/system/minecraft.service")
         os.remove(temp_service_path)
 
-        # Set permissions
-        build_log.append("Setting permissions...")
-        run_command(f"chown -R {MINECRAFT_USER}:{MINECRAFT_USER} {MINECRAFT_DIR}")
-        run_command(f"chmod -R 755 {MINECRAFT_DIR}")
+
         
         # Reload systemd and enable service
         build_log.append("Enabling systemd service...")
