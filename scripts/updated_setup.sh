@@ -162,6 +162,9 @@ EOF
     chown "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR/.env"
     log "Environment file created"
 fi
+echo "MINECRAFT_DIR=/opt/minecraft" >> "$INSTALL_DIR/.env"
+echo "MINECRAFT_USER=minecraft" >> "$INSTALL_DIR/.env"
+
 
 # Initialize database
 log "Initializing database..."
