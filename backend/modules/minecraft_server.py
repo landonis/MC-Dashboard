@@ -206,7 +206,7 @@ def build_server():
         fabric_url = f"https://maven.fabricmc.net/net/fabricmc/fabric-installer/{fabric_version}/fabric-installer-{fabric_version}.jar"
         
         installer_path = f"{MINECRAFT_DIR}/fabric-installer-{fabric_version}.jar"
-        download_result = run_command(f"wget -O '{installer_path}' '{fabric_url}'")
+        download_result = run_command(f"/usr/bin/wget -O '{installer_path}' '{fabric_url}'")
         
         if not download_result['success']:
             return jsonify({
