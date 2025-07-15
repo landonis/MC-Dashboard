@@ -217,11 +217,6 @@ def build_server():
         # Ensure minecraft directory exists
         build_log.append("Setting up minecraft directory...")
         run_command(f"/usr/bin/sudo /bin/mkdir -p {MINECRAFT_DIR}")
-
-        # Set permissions
-        build_log.append("Setting permissions...")
-        run_command(f"/usr/bin/sudo /bin/chown -R {MINECRAFT_USER}:{MINECRAFT_USER} {MINECRAFT_DIR}")
-        run_command(f"/usr/bin/sudo /bin/chmod -R 755 {MINECRAFT_DIR}")
         
         # Download Minecraft Server Jar
 
@@ -294,12 +289,17 @@ WantedBy=multi-user.target
         run_command(f"/usr/bin/sudo /bin/cp {temp_service_path} /etc/systemd/system/minecraft.service")
         os.remove(temp_service_path)
 
-
+        # Set permissions
+        build_log.append("Setting permissions...")
+        run_command(f"/usr/bin/sudo /bin/chown -R {MINECRAFT_USER}:{MINECRAFT_USER} {MINECRAFT_DIR}")
+        run_command(f"/usr/bin/sudo /bin/chmod -R 755 {MINECRAFT_DIR}")
         
         # Reload systemd and enable service
         build_log.append("Enabling systemd service...")
         run_command("/bin/systemctl daemon-reload")
         run_command("/bin/systemctl enable minecraft.service")
+
+
         
         build_log.append("Server build completed successfully!")
         
