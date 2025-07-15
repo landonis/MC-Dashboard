@@ -70,7 +70,8 @@ def get_server_status():
         detail_result = run_command("systemctl status minecraft.service --no-pager -l")
         
         # Check if server directory exists
-        server_exists = os.path.exists('/opt/minecraft')
+        service_exists = os.path.exists('/etc/systemd/system/minecraft.service')
+        server_exists = os.path.exists('/opt/minecraft') and service_exists
         
         # Get world info if server exists
         world_info = {}
