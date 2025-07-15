@@ -1,0 +1,19 @@
+[Unit]
+Description=Dashboard Backend Service
+After=network.target
+
+[Service]
+Type=simple
+User=dashboardapp
+Group=dashboardapp
+WorkingDirectory=/opt/dashboard-app/backend
+Environment=PATH=/opt/dashboard-app/backend/venv/bin
+Environment=PYTHONPATH=/opt/dashboard-app:/opt/dashboard-app/backend
+ExecStart=/opt/dashboard-app/backend/venv/bin/python run.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

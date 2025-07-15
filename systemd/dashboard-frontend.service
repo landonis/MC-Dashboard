@@ -1,0 +1,17 @@
+[Unit]
+Description=Dashboard Frontend Service
+After=network.target
+
+[Service]
+Type=simple
+User=dashboardapp
+Group=dashboardapp
+WorkingDirectory=/opt/dashboard-app/frontend
+ExecStart=/usr/bin/npx serve -s dist -l 3000
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
