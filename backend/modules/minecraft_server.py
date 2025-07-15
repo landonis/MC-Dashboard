@@ -201,6 +201,11 @@ def build_server():
         # Ensure minecraft directory exists
         build_log.append("Setting up minecraft directory...")
         run_command(f"mkdir -p {MINECRAFT_DIR}")
+
+        # Set permissions
+        build_log.append("Setting permissions...")
+        run_command(f"chown -R {MINECRAFT_USER}:{MINECRAFT_USER} {MINECRAFT_DIR}")
+        run_command(f"chmod -R 755 {MINECRAFT_DIR}")
         
         # Download Fabric installer
         build_log.append(f"Downloading Fabric installer for Minecraft {minecraft_version}...")
@@ -248,11 +253,6 @@ motd=Minecraft Server managed by Dashboard
         with open(f'{MINECRAFT_DIR}/server.properties', 'w') as f:
             f.write(server_properties.strip())
         
-        # Set permissions
-        build_log.append("Setting permissions...")
-        run_command(f"chown -R {MINECRAFT_USER}:{MINECRAFT_USER} {MINECRAFT_DIR}")
-        run_command(f"chmod -R 755 {MINECRAFT_DIR}")
-        
         # Create systemd service
         build_log.append("Creating systemd service...")
         service_content = f"""[Unit]
@@ -264,7 +264,7 @@ Type=simple
 User={MINECRAFT_USER}
 Group={MINECRAFT_USER}
 WorkingDirectory={MINECRAFT_DIR}
-ExecStart=/usr/bin/java -Xmx{memory_gb}G -Xms{memory_gb}G -jar {MINECRAFT_DIR}/fabric-installer-{fabric_version}.jar nogui
+ExecStart=/usr/bin/java -Xmx{memory_gb}G -Xms{memory_gb}G -jar {MINECRAFT_DIR}/fabric-server-launcher.jar nogui
 Restart=always
 RestartSec=10
 StandardOutput=journal
