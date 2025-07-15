@@ -216,12 +216,12 @@ def build_server():
         
         # Ensure minecraft directory exists
         build_log.append("Setting up minecraft directory...")
-        run_command(f"mkdir -p {MINECRAFT_DIR}")
+        run_command(f"/bin/mkdir -p {MINECRAFT_DIR}")
 
         # Set permissions
         build_log.append("Setting permissions...")
-        run_command(f"chown -R {MINECRAFT_USER}:{MINECRAFT_USER} {MINECRAFT_DIR}")
-        run_command(f"chmod -R 755 {MINECRAFT_DIR}")
+        run_command(f"/bin/chown -R {MINECRAFT_USER}:{MINECRAFT_USER} {MINECRAFT_DIR}")
+        run_command(f"/bin/chmod -R 755 {MINECRAFT_DIR}")
         
         # Download Minecraft Server Jar
 
@@ -229,7 +229,7 @@ def build_server():
         dl_result = run_command(f"/usr/bin/curl -L -o '{MINECRAFT_DIR}/server.jar' '{url}'")
         if not dl_result['success']:
             return jsonify({
-                'error': f'Failed to download Minecraft Server: {download_result["stderr"]}',
+                'error': f'Failed to download Minecraft Server: {dl_result["stderr"]}',
                 'log': build_log
             }), 500
         
