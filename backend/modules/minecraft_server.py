@@ -226,7 +226,7 @@ def build_server():
         # Download Minecraft Server Jar
 
         url = get_minecraft_server_jar_url(minecraft_version)
-        dl_result = run_command(f"/usr/bin/curl -L -o '{MINECRAFT_DIR}/server.jar' '{url}'")
+        dl_result = run_command(f"/usr/bin/sudo /usr/bin/curl -L -o '{MINECRAFT_DIR}/server.jar' '{url}'")
         if not dl_result['success']:
             return jsonify({
                 'error': f'Failed to download Minecraft Server: {dl_result["stderr"]}',
