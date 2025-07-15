@@ -291,8 +291,8 @@ WantedBy=multi-user.target
 
         # Set permissions
         build_log.append("Setting permissions...")
-        run_command(f"/usr/bin/sudo /bin/chown -R {MINECRAFT_USER}:{MINECRAFT_USER} {MINECRAFT_DIR}")
-        run_command(f"/usr/bin/sudo /bin/chmod -R 755 {MINECRAFT_DIR}")
+        run_command(f"/bin/chown -R {MINECRAFT_USER}:{MINECRAFT_USER} {MINECRAFT_DIR}")
+        run_command(f"/bin/chmod -R 755 {MINECRAFT_DIR}")
         
         # Reload systemd and enable service
         build_log.append("Enabling systemd service...")
