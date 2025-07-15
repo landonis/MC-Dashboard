@@ -291,17 +291,55 @@ WantedBy=multi-user.target
 def get_versions():
     """Get available Minecraft and Fabric versions"""
     try:
-        # Get Minecraft versions (simplified - you might want to fetch from Mojang API)
-        minecraft_versions = [
-            '1.20.4', '1.20.3', '1.20.2', '1.20.1', '1.20',
-            '1.19.4', '1.19.3', '1.19.2', '1.19.1', '1.19'
-        ]
+        # Get Minecraft versions from Mojang API
+        minecraft_versions = []
+        try:
+            import requests
+            response = requests.get('https://launchermeta.mojang.com/mc/game/version_manifest.json', timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                # Get release versions only (not snapshots)
+                minecraft_versions = [
+                    version['id'] for version in data['versions'] 
+                    if version['type'] == 'release'
+                ][:20]  # Limit to latest 20 releases
+            else:
+                # Fallback versions if API fails
+                minecraft_versions = [
+                    '1.20.4', '1.20.3', '1.20.2', '1.20.1', '1.20',
+                    '1.19.4', '1.19.3', '1.19.2', '1.19.1', '1.19'
+                ]
+        except Exception as e:
+            logger.warning(f"Failed to fetch Minecraft versions: {str(e)}")
+            minecraft_versions = [
+                '1.20.4', '1.20.3', '1.20.2', '1.20.1', '1.20',
+                '1.19.4', '1.19.3', '1.19.2', '1.19.1', '1.19'
+            ]
         
-        # Get Fabric versions (simplified - you might want to fetch from Fabric API)
-        fabric_versions = [
-            '0.15.3', '0.15.2', '0.15.1', '0.15.0',
-            '0.14.24', '0.14.23', '0.14.22', '0.14.21'
-        ]
+        # Get Fabric versions from Fabric API
+        fabric_versions = []
+        try:
+            import requests
+            response = requests.get('https://meta.fabricmc.net/v2/versions/loader', timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                # Get stable versions only
+                fabric_versions = [
+                    version['version'] for version in data 
+                    if version.get('stable', False)
+                ][:15]  # Limit to latest 15 stable versions
+            else:
+                # Fallback versions if API fails
+                fabric_versions = [
+                    '0.15.3', '0.15.2', '0.15.1', '0.15.0',
+                    '0.14.24', '0.14.23', '0.14.22', '0.14.21'
+                ]
+        except Exception as e:
+            logger.warning(f"Failed to fetch Fabric versions: {str(e)}")
+            fabric_versions = [
+                '0.15.3', '0.15.2', '0.15.1', '0.15.0',
+                '0.14.24', '0.14.23', '0.14.22', '0.14.21'
+            ]
         
         return jsonify({
             'minecraft_versions': minecraft_versions,
@@ -310,7 +348,6 @@ def get_versions():
     
     except Exception as e:
         logger.error(f"Get versions error: {str(e)}")
-        return jsonify({'error': 'Failed to get versions'}), 500
 
 def get_directory_size(path):
     """Get directory size in MB"""
