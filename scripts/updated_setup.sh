@@ -5,7 +5,7 @@
 set -e
 
 # Configuration
-REPO_URL="https://github.com/landonis/dashboard-app"
+REPO_URL="https://github.com/landonis/MC-dashboard"
 INSTALL_DIR="/opt/dashboard-app"
 SERVICE_USER="dashboardapp"
 LOG_FILE="/var/log/dashboard-setup.log"
