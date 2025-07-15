@@ -5,6 +5,8 @@ import {
   Home, 
   Users, 
   Monitor, 
+  Cloud,
+  Server,
   LogOut, 
   Menu, 
   X,
@@ -23,6 +25,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const navigation = [
     { name: 'Dashboard', href: '/', icon: Home, requiredRole: 'user' },
     { name: 'Users', href: '/users', icon: Users, requiredRole: 'admin' },
+    { name: 'Server', href: '/server', icon: Server, requiredRole: 'admin' },
+    { name: 'Drive Backup', href: '/drive', icon: Cloud, requiredRole: 'admin' },
     { name: 'System Info', href: '/system-info', icon: Monitor, requiredRole: 'admin' },
   ]
 

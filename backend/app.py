@@ -238,7 +238,12 @@ def change_password(user_id):
 
 # Import and register module routes
 from modules.system_info.api import system_info_bp
+from modules.rclone_drive import rclone_drive_bp
+from modules.minecraft_server import minecraft_server_bp
+
 app.register_blueprint(system_info_bp, url_prefix='/modules')
+app.register_blueprint(rclone_drive_bp)
+app.register_blueprint(minecraft_server_bp)
 #try:
 
 #    logger.info("System info module loaded successfully")

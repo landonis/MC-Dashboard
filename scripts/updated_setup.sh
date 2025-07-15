@@ -80,6 +80,28 @@ else
     log "Service user '$SERVICE_USER' already exists"
 fi
 
+# Create minecraft user and directory
+log "Setting up minecraft user and directory..."
+if ! id "minecraft" &>/dev/null; then
+    useradd -r -s /bin/false minecraft
+    log "Minecraft user created"
+else
+    log "Minecraft user already exists"
+fi
+
+mkdir -p /opt/minecraft
+chown -R minecraft:minecraft /opt/minecraft
+chmod -R 755 /opt/minecraft
+
+# Install rclone if missing
+log "Installing rclone..."
+if ! command -v rclone &>/dev/null; then
+    curl https://rclone.org/install.sh | sudo bash
+    log "rclone installed successfully"
+else
+    log "rclone already installed"
+fi
+
 # Create install directory
 log "Creating install directory..."
 mkdir -p "$INSTALL_DIR"
@@ -202,6 +224,7 @@ EOF
 
 # Reload systemd and enable services
 systemctl daemon-reload
+systemctl daemon-reexec
 systemctl enable dashboard-backend.service
 systemctl enable dashboard-frontend.service
 
