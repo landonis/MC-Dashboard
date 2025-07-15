@@ -69,11 +69,11 @@ def get_server_status():
     """Get Minecraft server status"""
     try:
         # Check systemctl status
-        status_result = run_command("systemctl is-active minecraft.service")
+        status_result = run_command("sudo systemctl is-active minecraft.service")
         is_running = status_result['success'] and status_result['stdout'].strip() == 'active'
         
         # Get detailed status
-        detail_result = run_command("systemctl status minecraft.service --no-pager -l")
+        detail_result = run_command("sudo systemctl status minecraft.service --no-pager -l")
         
         # Check if server directory exists
         service_exists = os.path.exists('/etc/systemd/system/minecraft.service')
@@ -127,7 +127,7 @@ def start_server():
         if not os.path.exists('/opt/minecraft'):
             return jsonify({'error': 'Server not built yet'}), 400
         
-        result = run_command("systemctl start minecraft.service")
+        result = run_command("sudo systemctl start minecraft.service")
         
         if result['success']:
             return jsonify({'message': 'Server started successfully'})
@@ -145,7 +145,7 @@ def start_server():
 def stop_server():
     """Stop Minecraft server"""
     try:
-        result = run_command("systemctl stop minecraft.service")
+        result = run_command("sudo systemctl stop minecraft.service")
         
         if result['success']:
             return jsonify({'message': 'Server stopped successfully'})
@@ -163,7 +163,7 @@ def stop_server():
 def restart_server():
     """Restart Minecraft server"""
     try:
-        result = run_command("systemctl restart minecraft.service")
+        result = run_command("sudo systemctl restart minecraft.service")
         
         if result['success']:
             return jsonify({'message': 'Server restarted successfully'})
