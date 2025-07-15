@@ -46,7 +46,7 @@ def run_command(cmd, cwd=None):
             timeout=300
         )
         
-        build_log.append(result['stdout'] + result['stderr'])
+        
         return {
             'success': result.returncode == 0,
             'stdout': result.stdout,
