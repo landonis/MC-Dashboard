@@ -156,9 +156,7 @@ def export_world():
         # Create zip file
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         zip_filename = f"{world_name}_backup_{timestamp}.zip"
-        
-        with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as temp_zip:
-            temp_zip_path = temp_zip.name
+        temp_zip_path = f"/tmp/{zip_filename}"
         
         try:
             cmd = f"/usr/bin/zip -r '{temp_zip_path}' '{world_path}'"
