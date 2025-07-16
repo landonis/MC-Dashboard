@@ -204,8 +204,6 @@ def import_world():
         
         if not backup_filename:
             return jsonify({'error': 'Backup filename required'}), 400
-
-        run_command(f"/usr/bin/chown -R {SERVICE_USER}:mcgroup {MINECRAFT_DIR}")
         # Download from Google Drive
         with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as temp_file:
             temp_path = temp_file.name
@@ -225,16 +223,20 @@ def import_world():
                 os.rename(downloaded_path, temp_path)
             
             # Extract to minecraft directory
-            run_command(f"/usr/bin/chown -R {SERVICE_USER}:mcgroup {MINECRAFT_DIR}/world/")
-            result = run_command(f"/usr/bin/rm -rf {MINECRAFT_DIR}/world/*")
+            result = run_command(f"/usr/bin/sudo -u {MINECRAFT_USER} /usr/bin/rm -rf {MINECRAFT_DIR}/world/*")
             if not result['success']:
                 return jsonify({
                     'error': f'removing old world files failed: {result["stderr"]}'
                 }), 500
-            extract_path = MINECRAFT_DIR
-            with zipfile.ZipFile(temp_path, 'r') as zipf:
-                zipf.extractall(extract_path)
+
+            result = run_command(f"/usr/bin/sudo /usr/bin/chown -R {SERVICE_USER}:mcgroup {temp_path}")
+            cmd = f"/usr/bin/sudo -u {MINECRAFT_USER} /usr/bin/unzip -o '{temp_path}' -d '{extract_path}'"
+            result = run_command(cmd)
             
+            if not result['success']:
+                return jsonify({
+                    'error': f'Extraction failed: {result["stderr"]}'
+                }), 500
             return jsonify({
                 'message': f'World imported successfully from {backup_filename}'
             })
@@ -247,11 +249,10 @@ def import_world():
                     os.unlink(path)
             
             run_command(f"/usr/bin/chown -R {MINECRAFT_USER}:mcgroup {MINECRAFT_DIR}")
-            run_command(f"/usr/bin/systemctl start minecraft")
+            run_command(f"/usr/bin/sudo /usr/bin/systemctl start minecraft")
     
     except Exception as e:
         run_command(f"/usr/bin/chown -R {MINECRAFT_USER}:mcgroup {MINECRAFT_DIR}")
-        run_command(f"/usr/bin/systemctl start minecraft")
         logger.error(f"Import world error: {str(e)}")
         return jsonify({'error': f"Import failed - {e}"}), 500
 
