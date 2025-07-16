@@ -161,13 +161,13 @@ def export_world():
             temp_zip_path = temp_zip.name
         
         try:
-            # Create zip archive
-            with zipfile.ZipFile(temp_zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-                for root, dirs, files in os.walk(world_path):
-                    for file in files:
-                        file_path = os.path.join(root, file)
-                        arcname = os.path.relpath(file_path, os.path.dirname(world_path))
-                        zipf.write(file_path, arcname)
+            # Create zip as minecraft user
+            cmd = f"sudo -u {MINECRAFT_USER} zip -r '{temp_zip_path}' '{world_path}'"
+            result = run_command(cmd)
+            if not result['success']:
+                return jsonify({'error': f'Zip failed: {result['stderr']}'})
+
+            run_command(f"/usr/bin/chown -R {SERVICE_USER}:mcgroup {temp_zip_path}")
             
             # Upload to Google Drive
             cmd = f"/usr/bin/rclone copy '{temp_zip_path}' 'gdrive:minecraft-backups/' --config /opt/dashboard-app/.rclone.conf"
@@ -241,11 +241,11 @@ def import_world():
                 if os.path.exists(path):
                     os.unlink(path)
             
-            run_command(f"/usr/bin/chown -R {MINECRAFT_USER}:{MINECRAFT_USER} {MINECRAFT_DIR}")
+            run_command(f"/usr/bin/chown -R {MINECRAFT_USER} {MINECRAFT_DIR}")
             run_command(f"/usr/bin/systemctl start minecraft")
     
     except Exception as e:
-        run_command(f"/usr/bin/chown -R {MINECRAFT_USER}:{MINECRAFT_USER} {MINECRAFT_DIR}")
+        run_command(f"/usr/bin/chown -R {MINECRAFT_USER} {MINECRAFT_DIR}")
         run_command(f"/usr/bin/systemctl start minecraft")
         logger.error(f"Import world error: {str(e)}")
         return jsonify({'error': 'Import failed'}), 500
