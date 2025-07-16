@@ -78,10 +78,9 @@ def upload_file():
         if not filename.endswith(".zip"):
             filename += ".zip"
         
-        # Save file temporarily
-        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-            file.save(filename)
-            temp_path = temp_file.name
+        upload_dir = tempfile.gettempdir()
+        temp_path = os.path.join(upload_dir, filename)
+        file.save(temp_path)
         
         try:
             # Upload to Google Drive using rclone
