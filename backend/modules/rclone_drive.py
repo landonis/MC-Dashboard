@@ -191,7 +191,7 @@ def export_world():
     
     except Exception as e:
         logger.error(f"Export world error: {str(e)}")
-        return jsonify({'error': 'Export failed'}), 500
+        return jsonify({'error': f"Export failed, {e}"}), 500
 
 @rclone_drive_bp.route('/import-world', methods=['POST'])
 @admin_required
