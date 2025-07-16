@@ -241,14 +241,14 @@ def import_world():
                 if os.path.exists(path):
                     os.unlink(path)
             
-            run_command(f"/usr/bin/chown -R {MINECRAFT_USER} {MINECRAFT_DIR}")
+            run_command(f"/usr/bin/chown {MINECRAFT_USER}:mcgroup {MINECRAFT_DIR}")
             run_command(f"/usr/bin/systemctl start minecraft")
     
     except Exception as e:
-        run_command(f"/usr/bin/chown -R {MINECRAFT_USER} {MINECRAFT_DIR}")
+        run_command(f"/usr/bin/chown {MINECRAFT_USER}:mcgroup {MINECRAFT_DIR}")
         run_command(f"/usr/bin/systemctl start minecraft")
         logger.error(f"Import world error: {str(e)}")
-        return jsonify({'error': 'Import failed'}), 500
+        return jsonify({'error': f"Import failed - {e}"}), 500
 
 @rclone_drive_bp.route('/upload-rclone-key', methods=['POST'])
 @admin_required
