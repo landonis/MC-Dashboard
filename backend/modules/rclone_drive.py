@@ -264,7 +264,7 @@ def upload_rclone_key():
         run_command(f"/usr/bin/chown dashboardapp:dashboardapp {config_path}")
         
         # Test rclone configuration
-        test_result = run_command(f"rclone lsd gdrive: --config {config_path}")
+        test_result = run_command(f"/usr/bin/rclone lsd gdrive: --config {config_path}")
         
         if test_result['success']:
             return jsonify({
@@ -289,7 +289,7 @@ def get_status():
         
         if config_exists:
             # Test connection
-            test_result = run_command(f"rclone lsd gdrive: --config {config_path}")
+            test_result = run_command(f"/usr/bin/rclone lsd gdrive: --config {config_path}")
             connected = test_result['success']
         else:
             connected = False
