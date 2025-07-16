@@ -196,7 +196,7 @@ def export_world():
 def import_world():
     """Download and extract selected world from Google Drive"""
     try:
-        run_command(f"/usr/bin/systemctl stop minecraft")
+        run_command(f"/usr/bin/sudo /usr/bin/systemctl stop minecraft")
         
         data = request.get_json()
         backup_filename = data.get('backup_filename')
