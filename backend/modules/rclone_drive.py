@@ -223,6 +223,7 @@ def import_world():
                 os.rename(downloaded_path, temp_path)
             
             # Extract to minecraft directory
+            run_command(f"/usr/bin/chown -R {SERVICE_USER}:mcgroup {MINECRAFT_DIR}/world/")
             result = run_command(f"/usr/bin/rm -rf {MINECRAFT_DIR}/world/*")
             if not result['success']:
                 return jsonify({
