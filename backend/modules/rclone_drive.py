@@ -78,7 +78,7 @@ def upload_file():
         try:
             # Upload to Google Drive using rclone
             remote_path = f"gdrive:minecraft-backups/{file.filename}"
-            cmd = f"rclone copy '{temp_path}' 'gdrive:minecraft-backups/' --config /opt/dashboard-app/.rclone.conf"
+            cmd = f"/usr/bin/rclone copy '{temp_path}' 'gdrive:minecraft-backups/' --config /opt/dashboard-app/.rclone.conf"
             result = run_command(cmd)
             
             if result['success']:
@@ -104,7 +104,7 @@ def upload_file():
 def list_backups():
     """List world backups from Google Drive"""
     try:
-        cmd = "rclone lsjson 'gdrive:minecraft-backups/' --config /opt/dashboard-app/.rclone.conf"
+        cmd = "/usr/bin/rclone lsjson 'gdrive:minecraft-backups/' --config /opt/dashboard-app/.rclone.conf"
         result = run_command(cmd)
         
         if result['success']:
@@ -166,7 +166,7 @@ def export_world():
                         zipf.write(file_path, arcname)
             
             # Upload to Google Drive
-            cmd = f"rclone copy '{temp_zip_path}' 'gdrive:minecraft-backups/' --config /opt/dashboard-app/.rclone.conf"
+            cmd = f"/usr/bin/rclone copy '{temp_zip_path}' 'gdrive:minecraft-backups/' --config /opt/dashboard-app/.rclone.conf"
             result = run_command(cmd)
             
             if result['success']:
@@ -205,7 +205,7 @@ def import_world():
             temp_path = temp_file.name
         
         try:
-            cmd = f"rclone copy 'gdrive:minecraft-backups/{backup_filename}' '{os.path.dirname(temp_path)}/' --config /opt/dashboard-app/.rclone.conf"
+            cmd = f"/usr/bin/rclone copy 'gdrive:minecraft-backups/{backup_filename}' '{os.path.dirname(temp_path)}/' --config /opt/dashboard-app/.rclone.conf"
             result = run_command(cmd)
             
             if not result['success']:
@@ -261,14 +261,14 @@ def upload_rclone_key():
         
         # Set proper permissions
         os.chmod(config_path, 0o600)
-        run_command(f"chown dashboardapp:dashboardapp {config_path}")
+        run_command(f"/usr/bin/chown dashboardapp:dashboardapp {config_path}")
         
         # Test rclone configuration
         test_result = run_command(f"rclone lsd gdrive: --config {config_path}")
         
         if test_result['success']:
             return jsonify({
-                'message': 'rclone configuration uploaded and verified successfully'
+                'message': '/usr/bin/rclone configuration uploaded and verified successfully'
             })
         else:
             return jsonify({
