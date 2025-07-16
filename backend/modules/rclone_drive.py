@@ -12,7 +12,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Create blueprint
-rclone_drive_bp = Blueprint('rclone_drive', __name__, url_prefix='/api/drive')
+rclone_drive_bp = Blueprint('rclone_drive', __name__, url_prefix='/drive')
 
 def admin_required(f):
     @wraps(f)
