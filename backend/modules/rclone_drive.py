@@ -238,10 +238,10 @@ def import_world():
             for path in [temp_path, downloaded_path]:
                 if os.path.exists(path):
                     os.unlink(path)
-            run_command(f"/usr/bin/chown -R {MINECRAFT_USER}:{MINECRAFT_USER} {MINECRAFT}")
+            run_command(f"/usr/bin/chown -R {MINECRAFT_USER}:{MINECRAFT_USER} {MINECRAFT_DIR}")
     
     except Exception as e:
-        run_command(f"/usr/bin/chown -R {MINECRAFT_USER}:{MINECRAFT_USER} {MINECRAFT}")
+        run_command(f"/usr/bin/chown -R {MINECRAFT_USER}:{MINECRAFT_USER} {MINECRAFT_DIR}")
         logger.error(f"Import world error: {str(e)}")
         return jsonify({'error': 'Import failed'}), 500
 
