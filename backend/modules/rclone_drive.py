@@ -158,7 +158,7 @@ def export_world():
         zip_filename = f"{world_name}_backup_{timestamp}.zip"
         
         with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as temp_zip:
-            temp_zip_path = /temp/temp_zip.name
+            temp_zip_path = f"/temp/{temp_zip.name}"
         
         try:
             for root, dirs, files in os.walk(world_path):
