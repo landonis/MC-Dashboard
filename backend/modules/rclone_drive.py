@@ -161,8 +161,7 @@ def export_world():
             temp_zip_path = temp_zip.name
         
         try:
-            # Create zip as minecraft user
-            cmd = f"/usr/bin/sudo -u {MINECRAFT_USER} /usr/bin/zip -r '{temp_zip_path}' '{world_path}'"
+            cmd = f"/usr/bin/zip -r '{temp_zip_path}' '{world_path}'"
             result = run_command(cmd)
             if not result['success']:
                 return jsonify({'error': f'Zip failed: {result['stderr']}'})
@@ -206,7 +205,7 @@ def import_world():
         if not backup_filename:
             return jsonify({'error': 'Backup filename required'}), 400
 
-        run_command(f"/usr/bin/chown {SERVICE_USER}:{SERVICE_USER} {MINECRAFT_DIR}")
+        run_command(f"/usr/bin/chown {SERVICE_USER}:mcgroup {MINECRAFT_DIR}")
         # Download from Google Drive
         with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as temp_file:
             temp_path = temp_file.name
@@ -271,7 +270,7 @@ def upload_rclone_key():
         
         # Set proper permissions
         os.chmod(config_path, 0o600)
-        run_command(f"/usr/bin/chown dashboardapp:dashboardapp {config_path}")
+        run_command(f"/usr/bin/chown {SERVICE_USER}:mcgroup {config_path}")
         
         # Test rclone configuration
         test_result = run_command(f"/usr/bin/rclone lsd gdrive: --config {config_path}")
