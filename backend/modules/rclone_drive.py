@@ -160,7 +160,7 @@ def export_world():
         temp_zip_path = f"/tmp/{zip_filename}"
         
         try:
-            cmd = f"cd '{os.path.dirname(world_path)}' && /usr/bin/zip -r '{temp_zip_path}' '{os.path.basename(world_path)}'"
+            cmd = f"cd '{os.path.dirname(world_path)}' && /usr/bin/sudo -u {MINECRAFT_USER} /usr/bin/zip -r '{temp_zip_path}' '{os.path.basename(world_path)}'"
             result = run_command(cmd)
 
             if not result['success']:
