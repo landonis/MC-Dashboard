@@ -203,7 +203,7 @@ def import_world():
         if not backup_filename:
             return jsonify({'error': 'Backup filename required'}), 400
 
-        run_command(f"/usr/bin/chown {SERVICE_USER}:mcgroup {MINECRAFT_DIR}")
+        run_command(f"/usr/bin/chown -R {SERVICE_USER}:mcgroup {MINECRAFT_DIR}")
         # Download from Google Drive
         with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as temp_file:
             temp_path = temp_file.name
@@ -238,11 +238,11 @@ def import_world():
                 if os.path.exists(path):
                     os.unlink(path)
             
-            run_command(f"/usr/bin/chown {MINECRAFT_USER}:mcgroup {MINECRAFT_DIR}")
+            run_command(f"/usr/bin/chown -R {MINECRAFT_USER}:mcgroup {MINECRAFT_DIR}")
             run_command(f"/usr/bin/systemctl start minecraft")
     
     except Exception as e:
-        run_command(f"/usr/bin/chown {MINECRAFT_USER}:mcgroup {MINECRAFT_DIR}")
+        run_command(f"/usr/bin/chown -R {MINECRAFT_USER}:mcgroup {MINECRAFT_DIR}")
         run_command(f"/usr/bin/systemctl start minecraft")
         logger.error(f"Import world error: {str(e)}")
         return jsonify({'error': f"Import failed - {e}"}), 500
@@ -268,7 +268,7 @@ def upload_rclone_key():
         
         # Set proper permissions
         os.chmod(config_path, 0o600)
-        run_command(f"/usr/bin/chown {SERVICE_USER}:mcgroup {config_path}")
+        run_command(f"/usr/bin/chown -R {SERVICE_USER}:mcgroup {config_path}")
         
         # Test rclone configuration
         test_result = run_command(f"/usr/bin/rclone lsd gdrive: --config {config_path}")
