@@ -73,6 +73,9 @@ def upload_file():
         file = request.files['file']
         if file.filename == '':
             return jsonify({'error': 'No file selected'}), 400
+
+        if not filename.endswith(".zip"):
+            filename += ".zip"
         
         # Save file temporarily
         with tempfile.NamedTemporaryFile(delete=False) as temp_file:
