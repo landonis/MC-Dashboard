@@ -123,6 +123,7 @@ def list_backups():
                         'modified': file.get('ModTime', ''),
                         'is_dir': file.get('IsDir', False)
                     })
+
                 
                 return jsonify({
                     'backups': backups,
@@ -159,7 +160,7 @@ def export_world():
         temp_zip_path = f"/tmp/{zip_filename}"
         
         try:
-            cmd = f"/usr/bin/sudo -u {MINECRAFT_USER} /usr/bin/zip -r '{temp_zip_path}' '{world_path}'"
+            cmd = f"cd '{os.path.dirname(world_path)}' && /usr/bin/zip -r '{temp_zip_path}' '{os.path.basename(world_path)}'"
             result = run_command(cmd)
 
             if not result['success']:
