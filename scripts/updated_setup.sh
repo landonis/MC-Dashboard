@@ -13,6 +13,8 @@ MINECRAFT_DIR="/opt/minecraft"
 LOG_FILE="/var/log/dashboard-setup.log"
 DOMAIN_NAME="${DOMAIN_NAME:-localhost}"
 MINECRAFT_GROUP="mcgroup"
+SUDOERS_FILE="/etc/sudoers.d/dashboard"
+
 
 # Logging function
 log() {
