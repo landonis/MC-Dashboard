@@ -230,7 +230,7 @@ def import_world():
                 }), 500
 
             result = run_command(f"/usr/bin/sudo /usr/bin/chown -R {SERVICE_USER}:mcgroup {temp_path}")
-            cmd = f"/usr/bin/sudo -u {MINECRAFT_USER} /usr/bin/unzip -o '{temp_path}' -d '{extract_path}'"
+            cmd = f"/usr/bin/sudo -u {MINECRAFT_USER} /usr/bin/unzip -o '{temp_path}' -d '{MINECRAFT_DIR}'"
             result = run_command(cmd)
             
             if not result['success']:
