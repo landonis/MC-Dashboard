@@ -198,6 +198,8 @@ def export_world():
 def import_world():
     """Download and extract selected world from Google Drive"""
     try:
+        run_command(f"/usr/bin/systemctl stop minecraft")
+        
         data = request.get_json()
         backup_filename = data.get('backup_filename')
         
@@ -238,10 +240,13 @@ def import_world():
             for path in [temp_path, downloaded_path]:
                 if os.path.exists(path):
                     os.unlink(path)
+            
             run_command(f"/usr/bin/chown -R {MINECRAFT_USER}:{MINECRAFT_USER} {MINECRAFT_DIR}")
+            run_command(f"/usr/bin/systemctl start minecraft")
     
     except Exception as e:
         run_command(f"/usr/bin/chown -R {MINECRAFT_USER}:{MINECRAFT_USER} {MINECRAFT_DIR}")
+        run_command(f"/usr/bin/systemctl start minecraft")
         logger.error(f"Import world error: {str(e)}")
         return jsonify({'error': 'Import failed'}), 500
 
