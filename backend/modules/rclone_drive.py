@@ -9,6 +9,10 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from functools import wraps
 import logging
 
+
+MINECRAFT_DIR = os.getenv("MINECRAFT_DIR", "/opt/minecraft")
+MINECRAFT_USER = os.getenv("MINECRAFT_USER", "minecraft")
+SERVICE_USER = os.getenv("SERVICE_USER", "dashboardapp")
 logger = logging.getLogger(__name__)
 
 # Create blueprint
@@ -199,7 +203,8 @@ def import_world():
         
         if not backup_filename:
             return jsonify({'error': 'Backup filename required'}), 400
-        
+
+        run_command(f"/usr/bin/chown {SERVICE_USER}:{SERVICE_USER} {MINECRAFT_DIR}")
         # Download from Google Drive
         with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as temp_file:
             temp_path = temp_file.name
@@ -223,20 +228,20 @@ def import_world():
             with zipfile.ZipFile(temp_path, 'r') as zipf:
                 zipf.extractall(extract_path)
             
-            # Set proper permissions
-            run_command(f"/usr/bin/chown -R {MINECRAFT_USER}:{MINECRAFT_USER} {extract_path}")
-            
             return jsonify({
                 'message': f'World imported successfully from {backup_filename}'
             })
         
         finally:
             # Clean up temp files
+            
             for path in [temp_path, downloaded_path]:
                 if os.path.exists(path):
                     os.unlink(path)
+            run_command(f"/usr/bin/chown -R {MINECRAFT_USER}:{MINECRAFT_USER} {MINECRAFT}")
     
     except Exception as e:
+        run_command(f"/usr/bin/chown -R {MINECRAFT_USER}:{MINECRAFT_USER} {MINECRAFT}")
         logger.error(f"Import world error: {str(e)}")
         return jsonify({'error': 'Import failed'}), 500
 
