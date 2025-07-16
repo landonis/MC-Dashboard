@@ -37,6 +37,7 @@ app.config["JWT_COOKIE_SAMESITE"] = "Lax"
 app.config["JWT_COOKIE_CSRF_PROTECT"] = False  # optional unless CSRF matters
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'jwt-secret-key-change-this')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
+app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024 * 1024
 
 # Configuration
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-change-this')
