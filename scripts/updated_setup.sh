@@ -312,6 +312,9 @@ iptables -I INPUT -p tcp --dport 22 -j ACCEPT
 iptables -I INPUT -p tcp --dport 80 -j ACCEPT
 iptables -I INPUT -p tcp --dport 443 -j ACCEPT
 
+# Allow Minecraft (default port 25565)
+iptables -I INPUT -p tcp --dport 25565 -j ACCEPT
+
 # Save iptables rules
 netfilter-persistent save
 
