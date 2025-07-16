@@ -158,14 +158,14 @@ def export_world():
         zip_filename = f"{world_name}_backup_{timestamp}.zip"
         
         with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as temp_zip:
-            temp_zip_path = temp_zip.name
+            temp_zip_path = /temp/temp_zip.name
         
         try:
-            cmd = f"/usr/bin/zip -r '{temp_zip_path}' '{world_path}'"
-            result = run_command(cmd)
-            if not result['success']:
-                return jsonify({'error': f'Zip failed: {result['stderr']}'})
-
+            for root, dirs, files in os.walk(world_path):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    arcname = os.path.relpath(file_path, os.path.dirname(world_path))
+                    zipf.write(file_path, arcname)
             run_command(f"/usr/bin/chown -R {SERVICE_USER}:mcgroup {temp_zip_path}")
             
             # Upload to Google Drive
