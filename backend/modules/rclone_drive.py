@@ -165,7 +165,7 @@ def export_world():
             result = run_command(cmd)
 
             if not result['success']:
-                return jsonify({'error': f'Zip failed: {result['stderr']}, {result['stout'}'}), 500
+                return jsonify({'error': f'Zip failed: {result['stderr']}, {result['stout']}'}), 500
             run_command(f"/usr/bin/chown -R {SERVICE_USER}:mcgroup {temp_zip_path}")
             
             # Upload to Google Drive
