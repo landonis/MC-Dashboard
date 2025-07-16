@@ -223,6 +223,11 @@ def import_world():
                 os.rename(downloaded_path, temp_path)
             
             # Extract to minecraft directory
+            result = run_command(f"/usr/bin/rm -rf {MINECRAFT_DIR}/world/*")
+            if not result['success']:
+                return jsonify({
+                    'error': f'removing old world files failed: {result["stderr"]}'
+                }), 500
             extract_path = MINECRAFT_DIR
             with zipfile.ZipFile(temp_path, 'r') as zipf:
                 zipf.extractall(extract_path)
