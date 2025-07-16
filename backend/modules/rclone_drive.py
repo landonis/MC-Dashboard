@@ -166,7 +166,7 @@ def export_world():
                 return jsonify({'error': f'Zip failed: {result}'}), 500
 
             # Let Service user access the zip at tmp
-            run_command(f"/usr/bin/chown -R {SERVICE_USER}:mcgroup {temp_zip_path}")
+            run_command(f"/usr/bin/sudo /usr/bin/chown -R {SERVICE_USER}:mcgroup {temp_zip_path}")
 
             # Upload to Google Drive
             cmd = f"/usr/bin/rclone copy '{temp_zip_path}' 'gdrive:minecraft-backups/' --config /opt/dashboard-app/.rclone.conf"
