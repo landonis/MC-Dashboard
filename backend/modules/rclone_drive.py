@@ -159,14 +159,15 @@ def export_world():
         temp_zip_path = f"/tmp/{zip_filename}"
         
         try:
-            run_command(f"/usr/bin/chown -R {SERVICE_USER}:mcgroup {world_path}")
             cmd = f"/usr/bin/sudo -u {MINECRAFT_USER} /usr/bin/zip -r '{temp_zip_path}' '{world_path}'"
             result = run_command(cmd)
 
             if not result['success']:
                 return jsonify({'error': f'Zip failed: {result}'}), 500
-            
-            
+
+            # Let Service user access the zip at tmp
+            run_command(f"/usr/bin/chown -R {SERVICE_USER}:mcgroup {temp_zip_path}")
+
             # Upload to Google Drive
             cmd = f"/usr/bin/rclone copy '{temp_zip_path}' 'gdrive:minecraft-backups/' --config /opt/dashboard-app/.rclone.conf"
             result = run_command(cmd)
