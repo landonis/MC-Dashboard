@@ -224,7 +224,7 @@ def import_world():
                 zipf.extractall(extract_path)
             
             # Set proper permissions
-            run_command(f"chown -R {MINECRAFT_USER}:{MINECRAFT_USER} {extract_path}")
+            run_command(f"/usr/bin/chown -R {MINECRAFT_USER}:{MINECRAFT_USER} {extract_path}")
             
             return jsonify({
                 'message': f'World imported successfully from {backup_filename}'
