@@ -161,11 +161,11 @@ def export_world():
             temp_zip_path = f"/temp/{temp_zip.name}"
         
         try:
-            for root, dirs, files in os.walk(world_path):
-                for file in files:
-                    file_path = os.path.join(root, file)
-                    arcname = os.path.relpath(file_path, os.path.dirname(world_path))
-                    zipf.write(file_path, arcname)
+            cmd = f"/usr/bin/sudo -u {MINECRAFT_USER} /usr/bin/zip -r '{temp_zip_path}' '{world_path}'"
+            result = run_command(cmd)
+
+            if not result['success']:
+                return jsonify({'error': f'Zip failed: {result['stderr']}'})
             run_command(f"/usr/bin/chown -R {SERVICE_USER}:mcgroup {temp_zip_path}")
             
             # Upload to Google Drive
