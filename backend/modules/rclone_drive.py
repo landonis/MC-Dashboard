@@ -74,28 +74,29 @@ def upload_file():
         if file.filename == '':
             return jsonify({'error': 'No file selected'}), 400
 
+        filename = file.filename
         if not filename.endswith(".zip"):
             filename += ".zip"
         
         # Save file temporarily
         with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-            file.save(temp_file.name)
+            file.save(filename)
             temp_path = temp_file.name
         
         try:
             # Upload to Google Drive using rclone
-            remote_path = f"gdrive:minecraft-backups/{file.filename}"
+            remote_path = f"gdrive:minecraft-backups/{filename}"
             cmd = f"/usr/bin/rclone copy '{temp_path}' 'gdrive:minecraft-backups/' --config /opt/dashboard-app/.rclone.conf"
             result = run_command(cmd)
             
             if result['success']:
                 return jsonify({
-                    'message': f'File {file.filename} uploaded successfully',
+                    'message': f'File {filename} uploaded successfully',
                     'filename': file.filename
                 })
             else:
                 return jsonify({
-                    'error': f'Upload failed: {result["stderr"]}'
+                    'error': f'Upload failed for file {filename}: {result["stderr"]}'
                 }), 500
         
         finally:
