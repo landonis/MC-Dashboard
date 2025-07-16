@@ -158,7 +158,7 @@ def export_world():
         zip_filename = f"{world_name}_backup_{timestamp}.zip"
         
         with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as temp_zip:
-            temp_zip_path = f"/temp/{temp_zip.name}"
+            temp_zip_path = temp_zip.name
         
         try:
             cmd = f"/usr/bin/sudo -u {MINECRAFT_USER} /usr/bin/zip -r '{temp_zip_path}' '{world_path}'"
