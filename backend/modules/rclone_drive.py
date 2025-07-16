@@ -162,7 +162,7 @@ def export_world():
         
         try:
             # Create zip as minecraft user
-            cmd = f"sudo -u {MINECRAFT_USER} zip -r '{temp_zip_path}' '{world_path}'"
+            cmd = f"/usr/bin/sudo -u {MINECRAFT_USER} /usr/bin/zip -r '{temp_zip_path}' '{world_path}'"
             result = run_command(cmd)
             if not result['success']:
                 return jsonify({'error': f'Zip failed: {result['stderr']}'})
