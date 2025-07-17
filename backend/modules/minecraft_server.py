@@ -384,7 +384,7 @@ def get_versions():
 def get_directory_size(path):
     """Get directory size in MB"""
     try:
-        result = run_command(f"/usr/bin/du -sm '{path}' | cut -f1")
+        result = run_command(f"/usr/bin/sudo -u {MINECRAFT_USER} /usr/bin/du -sm '{path}' | cut -f1")
         if result['success']:
             return int(result['stdout'].strip())
         return 0
