@@ -322,86 +322,102 @@ const Drive: React.FC = () => {
       </div>
 
       {/* Backups List */}
-      <div className="bg-white rounded-lg shadow-sm p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Backups</h3>
-          <button
-            onClick={fetchBackups}
-            disabled={loading}
-            className="text-primary-600 hover:text-primary-700 text-sm font-medium"
-          >
-            Refresh
-          </button>
-        </div>
+<div className="bg-white rounded-lg shadow-sm p-6">
+  <div className="flex items-center justify-between mb-4">
+    <h3 className="text-lg font-semibold text-gray-900">Backups</h3>
+    <button
+      onClick={fetchBackups}
+      disabled={loading}
+      className="text-primary-600 hover:text-primary-700 text-sm font-medium"
+    >
+      Refresh
+    </button>
+  </div>
 
-        {loading ? (
-          <div className="text-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-primary-600 mx-auto mb-2" />
-            <p className="text-gray-600">Loading backups...</p>
-          </div>
-        ) : backups.length === 0 ? (
-          <div className="text-center py-8">
-            <HardDrive className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">No backups found</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Name
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Size
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Modified
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {backups.map((backup, index) => (
-                  <tr key={index} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <FileText className="h-5 w-5 text-gray-400 mr-3" />
-                        <div className="text-sm font-medium text-gray-900">{backup.name}</div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {formatFileSize(backup.size)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {formatDate(backup.modified)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      {backup.name.endsWith('.zip') && (
-                        <button
-                          onClick={() => handleImportWorld(backup.name)}
-                          disabled={importing}
-                          className="text-primary-600 hover:text-primary-900 disabled:opacity-50"
-                        >
-                          {importing ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Download className="h-4 w-4" />
-                          )}
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+  {/* Upload to Google Drive */}
+  <div className="mb-6">
+    <label className="block text-sm font-medium text-gray-700 mb-2">
+      Restore a zipped backup file to Google Drive
+    </label>
+    <label className="flex items-center space-x-2 bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 cursor-pointer transition-colors w-fit">
+      <Upload className="h-4 w-4" />
+      <span>Select Backup File (.zip)</span>
+      <input
+        type="file"
+        accept=".zip"
+        onChange={handleFileUpload}
+        className="hidden"
+        disabled={uploading || !status?.connected}
+      />
+    </label>
+  </div>
+
+  {loading ? (
+    <div className="text-center py-8">
+      <Loader2 className="h-8 w-8 animate-spin text-primary-600 mx-auto mb-2" />
+      <p className="text-gray-600">Loading backups...</p>
     </div>
-  )
-}
+  ) : backups.length === 0 ? (
+    <div className="text-center py-8">
+      <HardDrive className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+      <p className="text-gray-600">No backups found</p>
+    </div>
+  ) : (
+    <div className="overflow-x-auto">
+      <table className="min-w-full divide-y divide-gray-200">
+        <thead className="bg-gray-50">
+          <tr>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Name
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Size
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Modified
+            </th>
+            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Actions
+            </th>
+          </tr>
+        </thead>
+        <tbody className="bg-white divide-y divide-gray-200">
+          {backups.map((backup, index) => (
+            <tr key={index} className="hover:bg-gray-50">
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="flex items-center">
+                  <FileText className="h-5 w-5 text-gray-400 mr-3" />
+                  <div className="text-sm font-medium text-gray-900">{backup.name}</div>
+                </div>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                {formatFileSize(backup.size)}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                {formatDate(backup.modified)}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                {backup.name.endsWith('.zip') && (
+                  <button
+                    onClick={() => handleImportWorld(backup.name)}
+                    disabled={importing}
+                    className="text-primary-600 hover:text-primary-900 disabled:opacity-50"
+                  >
+                    {importing ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4" />
+                    )}
+                  </button>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )}
+</div>
+      
 
 export default Drive
