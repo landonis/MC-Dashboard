@@ -146,7 +146,7 @@ def enable_service():
     """Enable the Minecraft systemd service"""
     try:
         run_command("/bin/systemctl daemon-reload")
-        result = run_command("/usr/bin/sudo -u {MINECRAFT_USER} /bin/systemctl enable minecraft.service")
+        result = run_command(f"/usr/bin/sudo -u {MINECRAFT_USER} /bin/systemctl enable minecraft.service")
 
         if result['success']:
             return jsonify({'message': 'Minecraft service enabled successfully'})
