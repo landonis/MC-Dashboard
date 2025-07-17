@@ -52,7 +52,9 @@ const DashboardPage: React.FC = () => {
     },
     {
       name: 'Memory Used',
-      value: status?.memory_info?.used_gb !== undefined ? `${status.memory_info.used_gb} GB` : 'N/A',
+      value: status?.memory_info?.used_mb !== undefined
+  ? `${status.memory_info.used_gb !== 0 ? `${status.memory_info.used_gb} GB ` : ''}${status.memory_info.used_mb} MB`
+  : 'N/A',
       icon: Monitor,
       color: 'text-primary-600',
       bgColor: 'bg-primary-50',
