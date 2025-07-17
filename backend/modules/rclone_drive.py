@@ -106,6 +106,31 @@ def upload_file():
         logger.error(f"Upload error: {str(e)}")
         return jsonify({'error': 'Upload failed'}), 500
 
+@rclone_drive_bp.route('/delete-backup', methods=['POST'])
+@admin_required
+def delete_backup():
+    """Delete a backup file from Google Drive"""
+    try:
+        data = request.get_json()
+        filename = data.get('backup_filename')
+
+        if not filename or not filename.endswith('.zip'):
+            return jsonify({'error': 'Invalid or missing backup filename'}), 400
+
+        remote_path = f"gdrive:minecraft-backups/{filename}"
+        cmd = f"/usr/bin/rclone delete '{remote_path}' --config /opt/dashboard-app/.rclone.conf"
+        result = run_command(cmd)
+
+        if result['success']:
+            return jsonify({'message': f'{filename} deleted successfully'})
+        else:
+            return jsonify({'error': f"Failed to delete {filename}: {result['stderr']}"}), 500
+
+    except Exception as e:
+        logger.error(f"Delete backup error: {str(e)}")
+        return jsonify({'error': 'Failed to delete backup'}), 500
+
+
 @rclone_drive_bp.route('/backups', methods=['GET'])
 @admin_required
 def list_backups():
