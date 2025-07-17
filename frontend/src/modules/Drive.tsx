@@ -416,8 +416,12 @@ const Drive: React.FC = () => {
         </tbody>
       </table>
     </div>
-  )}
+  )
+}
+  </div> {/* ✅ closes the .bg-white box */}
+</div> {/* ✅ closes the outermost .space-y-6 container */}
+  )
+}
 
-      
 
 export default Drive
