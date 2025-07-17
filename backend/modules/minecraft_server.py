@@ -151,7 +151,7 @@ def enable_service():
         if result['success']:
             return jsonify({'message': 'Minecraft service enabled successfully'})
         else:
-            return jsonify({'error': f"Failed to enable service: {result['stder'"]}"}), 500
+            return jsonify({'error': f"Failed to enable service: {result['stder']}"}), 500
 
     except Exception as e:
         logger.error(f"Enable service error: {str(e)}")
