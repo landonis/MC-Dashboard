@@ -389,6 +389,8 @@ def get_directory_size(path):
             return int(result['stdout'].strip())
         return 0
     except:
+        logger.error(f"get_directory_size error: {e}")
+
         return 0
 
 def check_service_enabled():
