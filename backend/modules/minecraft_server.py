@@ -140,6 +140,42 @@ def get_server_status():
         logger.error(f"Status error: {str(e)}")
         return jsonify({'error': 'Failed to get server status'}), 500
 
+@minecraft_server_bp.route('/enable', methods=['POST'])
+@admin_required
+def enable_service():
+    """Enable the Minecraft systemd service"""
+    try:
+        run_command("/bin/systemctl daemon-reload")
+        result = run_command("/usr/bin/sudo /bin/systemctl enable minecraft.service")
+
+        if result['success']:
+            return jsonify({'message': 'Minecraft service enabled successfully'})
+        else:
+            return jsonify({'error': f'Failed to enable service: {result["stderr"]}'}), 500
+
+    except Exception as e:
+        logger.error(f"Enable service error: {str(e)}")
+        return jsonify({'error': 'Failed to enable service'}), 500
+
+
+@minecraft_server_bp.route('/disable', methods=['POST'])
+@admin_required
+def disable_service():
+    """Disable the Minecraft systemd service"""
+    try:
+        run_command("/bin/systemctl daemon-reload")
+        result = run_command("/usr/bin/sudo /bin/systemctl disable minecraft.service")
+
+        if result['success']:
+            return jsonify({'message': 'Minecraft service disabled successfully'})
+        else:
+            return jsonify({'error': f'Failed to disable service: {result["stderr"]}'}), 500
+
+    except Exception as e:
+        logger.error(f"Disable service error: {str(e)}")
+        return jsonify({'error': 'Failed to disable service'}), 500
+
+
 @minecraft_server_bp.route('/start', methods=['POST'])
 @admin_required
 def start_server():
