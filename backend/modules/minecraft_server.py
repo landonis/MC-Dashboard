@@ -388,7 +388,7 @@ def get_directory_size(path):
         if result['success']:
             return int(result['stdout'].strip())
         return 0
-    except:
+    except exception as e:
         logger.error(f"get_directory_size error: {e}")
 
         return 0
