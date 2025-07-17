@@ -106,6 +106,32 @@ def upload_file():
         logger.error(f"Upload error: {str(e)}")
         return jsonify({'error': 'Upload failed'}), 500
 
+@rclone_drive_bp.route('/rename', methods=['POST'])
+@admin_required
+def rename_backup():
+    try:
+        data = request.get_json()
+        old_name = data.get('old_name')
+        new_name = data.get('new_name')
+
+        if not old_name or not new_name:
+            return jsonify({'error': 'Both old and new names are required'}), 400
+
+        old_path = f"gdrive:minecraft-backups/{old_name}"
+        new_path = f"gdrive:minecraft-backups/{new_name}"
+        cmd = f"/usr/bin/rclone moveto '{old_path}' '{new_path}' --config /opt/dashboard-app/.rclone.conf"
+        result = run_command(cmd)
+
+        if result['success']:
+            return jsonify({'message': f'Renamed {old_name} to {new_name}'})
+        else:
+            return jsonify({'error': f'Rename failed: {result["stderr"]}'}), 500
+
+    except Exception as e:
+        logger.error(f"Rename backup error: {str(e)}")
+        return jsonify({'error': 'Rename failed'}), 500
+
+
 @rclone_drive_bp.route('/delete-backup', methods=['POST'])
 @admin_required
 def delete_backup():
