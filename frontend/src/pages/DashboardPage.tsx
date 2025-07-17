@@ -27,7 +27,7 @@ const DashboardPage: React.FC = () => {
   useEffect(() => {
     const fetchStatus = async () => {
       try {
-        const res = await fetch('/server/status', {
+        const res = await fetch('/api/server/status', {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
         })
         const data = await res.json()
