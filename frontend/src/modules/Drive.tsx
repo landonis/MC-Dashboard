@@ -10,7 +10,9 @@ import {
   Loader2,
   Key,
   Archive,
-  Trash2
+  Trash2,
+  Check,
+  X
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import api from '../services/api'
@@ -39,7 +41,10 @@ const Drive: React.FC = () => {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [worldName, setWorldName] = useState('world')
+  const [editingFile, setEditingFile] = useState<string | null>(null)
+  const [editedName, setEditedName] = useState<string>('')
 
+  
   useEffect(() => {
     if (hasRole('admin')) {
       fetchStatus()
@@ -115,6 +120,33 @@ const Drive: React.FC = () => {
     } catch (error: any) {
       setError(error.response?.data?.error || 'Delete failed')
     }
+  }
+
+  const handleRename = async (oldName: string, newName: string) => {
+    if (!newName || oldName === newName) {
+      cancelEdit()
+      return
+    }
+  
+    setError('')
+    setSuccess('')
+    try {
+      const response = await api.post('/api/drive/rename', {
+        old_name: oldName,
+        new_name: newName
+      })
+  
+      setSuccess(response.data.message)
+      setEditingFile(null)
+      fetchBackups()
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Rename failed')
+    }
+  }
+  
+  const cancelEdit = () => {
+    setEditingFile(null)
+    setEditedName('')
   }
 
   
@@ -410,10 +442,40 @@ const Drive: React.FC = () => {
           {backups.map((backup, index) => (
             <tr key={index} className="hover:bg-gray-50">
               <td className="px-6 py-4 whitespace-nowrap">
-                <div className="flex items-center">
-                  <FileText className="h-5 w-5 text-gray-400 mr-3" />
-                  <div className="text-sm font-medium text-gray-900">{backup.name}</div>
-                </div>
+                {editingFile === backup.name ? (
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="text"
+                      value={editedName}
+                      onChange={(e) => setEditedName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleRename(backup.name, editedName)
+                        if (e.key === 'Escape') cancelEdit()
+                      }}
+                      className="border border-gray-300 px-2 py-1 rounded w-48"
+                    />
+                    <button onClick={() => handleRename(backup.name, editedName)} className="text-green-600 hover:text-green-800">
+                      <Check className="h-4 w-4" />
+                    </button>
+                    <button onClick={cancelEdit} className="text-red-600 hover:text-red-800">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center">
+                    <FileText className="h-5 w-5 text-gray-400 mr-3" />
+                    <span className="text-sm font-medium text-gray-900">{backup.name}</span>
+                    <button
+                      onClick={() => {
+                        setEditingFile(backup.name)
+                        setEditedName(backup.name)
+                      }}
+                      className="ml-2 text-blue-500 hover:text-blue-700 text-sm"
+                    >
+                      Edit
+                    </button>
+                  </div>
+                )}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                 {formatFileSize(backup.size)}
