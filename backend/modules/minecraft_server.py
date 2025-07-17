@@ -155,7 +155,7 @@ def enable_service():
 
     except Exception as e:
         logger.error(f"Enable service error: {str(e)}")
-        return jsonify({'error': 'Failed to enable service'}), 500
+        return jsonify({'error': f'Failed to enable service: {e}'}), 500
 
 
 @minecraft_server_bp.route('/disable', methods=['POST'])
@@ -184,7 +184,7 @@ def start_server():
         if not os.path.exists('/opt/minecraft'):
             return jsonify({'error': 'Server not built yet'}), 400
         
-        result = run_command("/usr/bin/sudo /bin/systemctl start minecraft.service")
+        result = run_command("/bin/systemctl start minecraft.service")
         
         if result['success']:
             return jsonify({'message': 'Server started successfully'})
@@ -202,7 +202,7 @@ def start_server():
 def stop_server():
     """Stop Minecraft server"""
     try:
-        result = run_command("/usr/bin/sudo /bin/systemctl stop minecraft.service")
+        result = run_command("/bin/systemctl stop minecraft.service")
         
         if result['success']:
             return jsonify({'message': 'Server stopped successfully'})
@@ -220,7 +220,7 @@ def stop_server():
 def restart_server():
     """Restart Minecraft server"""
     try:
-        result = run_command("/usr/bin/sudo /bin/systemctl restart minecraft.service")
+        result = run_command("/bin/systemctl restart minecraft.service")
         
         if result['success']:
             return jsonify({'message': 'Server restarted successfully'})
