@@ -307,20 +307,23 @@ const Drive: React.FC = () => {
       </div>
 
       {/* File Upload Section */}
-      <div className="bg-white rounded-lg shadow-sm p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Upload File</h3>
-        <label className="flex items-center space-x-2 bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 cursor-pointer transition-colors w-fit">
-          <Upload className="h-4 w-4" />
-          <span>Choose File</span>
-          <input
-            type="file"
-            onChange={handleFileUpload}
-            className="hidden"
-            disabled={uploading || !status?.connected}
-          />
-        </label>
-      </div>
-
+      
+        {/*      
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Upload File</h3>
+          <label className="flex items-center space-x-2 bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 cursor-pointer transition-colors w-fit">
+            <Upload className="h-4 w-4" />
+            <span>Choose File</span>
+            <input
+              type="file"
+              onChange={handleFileUpload}
+              className="hidden"
+              disabled={uploading || !status?.connected}
+            />
+          </label>
+        </div>
+        *\}
+      
       {/* Backups List */}
 <div className="bg-white rounded-lg shadow-sm p-6">
   <div className="flex items-center justify-between mb-4">
@@ -337,11 +340,11 @@ const Drive: React.FC = () => {
   {/* Upload to Google Drive */}
   <div className="mb-6">
     <label className="block text-sm font-medium text-gray-700 mb-2">
-      Restore a zipped backup file to Google Drive
+      Upload a zipped backup file to Google Drive (backup.zip/world/*)
     </label>
     <label className="flex items-center space-x-2 bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 cursor-pointer transition-colors w-fit">
       <Upload className="h-4 w-4" />
-      <span>Select Backup File (.zip)</span>
+      <span>Choose File (.zip)</span>
       <input
         type="file"
         accept=".zip"
