@@ -1,56 +1,88 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { 
-  Users, 
-  Monitor, 
-  Shield, 
+import {
+  Users,
+  Monitor,
+  Shield,
   Activity,
   TrendingUp,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  XCircle
 } from 'lucide-react'
+
+interface ServerStatus {
+  running: boolean
+  server_exists: boolean
+  memory_info: { used_mb: number; used_gb: number }
+  world_info: { exists: boolean; size?: number }
+  service_enabled: boolean
+}
 
 const DashboardPage: React.FC = () => {
   const { user, hasRole } = useAuth()
 
+  const [status, setStatus] = useState<ServerStatus | null>(null)
+
+  useEffect(() => {
+    const fetchStatus = async () => {
+      try {
+        const res = await fetch('/server/status', {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        })
+        const data = await res.json()
+        setStatus(data)
+      } catch (error) {
+        console.error('Failed to fetch server status:', error)
+      }
+    }
+
+    fetchStatus()
+  }, [])
+
   const stats = [
     {
       name: 'System Status',
-      value: 'Online',
-      icon: CheckCircle,
-      color: 'text-success-600',
-      bgColor: 'bg-success-50',
-      change: '+0.0%',
-      changeColor: 'text-success-600'
+      value: status ? (status.running ? 'Online' : 'Offline') : 'Loading...',
+      icon: status ? (status.running ? CheckCircle : XCircle) : Monitor,
+      color: status ? (status.running ? 'text-success-600' : 'text-error-600') : 'text-gray-400',
+      bgColor: status ? (status.running ? 'bg-success-50' : 'bg-error-50') : 'bg-gray-50',
+      change: '',
+      changeColor: 'text-gray-400'
     },
     {
-      name: 'Active Users',
-      value: '12',
-      icon: Users,
+      name: 'Memory Used',
+      value: status?.memory_info?.used_gb !== undefined ? `${status.memory_info.used_gb} GB` : 'N/A',
+      icon: Monitor,
       color: 'text-primary-600',
       bgColor: 'bg-primary-50',
-      change: '+2.5%',
-      changeColor: 'text-success-600'
+      change: '',
+      changeColor: 'text-gray-400'
     },
     {
-      name: 'Services',
-      value: '8',
+      name: 'World Size',
+      value: status?.world_info?.exists && status.world_info.size !== undefined
+        ? `${status.world_info.size} MB`
+        : 'N/A',
       icon: Activity,
       color: 'text-secondary-600',
       bgColor: 'bg-secondary-50',
-      change: '+1.2%',
-      changeColor: 'text-success-600'
+      change: '',
+      changeColor: 'text-gray-400'
     },
     {
-      name: 'Alerts',
-      value: '3',
-      icon: AlertCircle,
-      color: 'text-warning-600',
-      bgColor: 'bg-warning-50',
-      change: '-0.5%',
-      changeColor: 'text-error-600'
+      name: 'Service Enabled',
+      value: status ? (status.service_enabled ? 'Yes' : 'No') : 'N/A',
+      icon: Shield,
+      color: status?.service_enabled ? 'text-success-600' : 'text-error-600',
+      bgColor: status?.service_enabled ? 'bg-success-50' : 'bg-error-50',
+      change: '',
+      changeColor: 'text-gray-400'
     }
   ]
+
+  // The rest of the file remains unchanged
+
 
   const recentActivity = [
     { id: 1, action: 'User login', user: 'admin', time: '2 minutes ago', type: 'success' },
