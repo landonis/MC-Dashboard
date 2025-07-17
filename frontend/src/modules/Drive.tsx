@@ -9,7 +9,8 @@ import {
   CheckCircle,
   Loader2,
   Key,
-  Archive
+  Archive,
+  Trash2
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import api from '../services/api'
@@ -76,6 +77,8 @@ const Drive: React.FC = () => {
     setError('')
     setSuccess('')
 
+
+    
     try {
       const formData = new FormData()
       formData.append('file', file)
@@ -95,7 +98,26 @@ const Drive: React.FC = () => {
       event.target.value = ''
     }
   }
+  
+  const handleDeleteBackup = async (backupFilename: string) => {
+    if (!window.confirm(`Are you sure you want to delete ${backupFilename}?`)) {
+      return
+    }
+  
+    setError('')
+    setSuccess('')
+    try {
+      await api.post('/api/drive/delete-backup', {
+        backup_filename: backupFilename,
+      })
+      setSuccess(`${backupFilename} deleted successfully`)
+      fetchBackups()
+    } catch (error: any) {
+      setError(error.response?.data?.error || 'Delete failed')
+    }
+  }
 
+  
   const handleRcloneKeyUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
@@ -413,6 +435,12 @@ const Drive: React.FC = () => {
                     )}
                   </button>
                 )}
+                <button
+                onClick={() => handleDeleteBackup(backup.name)}
+                className="text-error-600 hover:text-error-900 disabled:opacity-50"
+                >
+                <Trash2 className="h-4 w-4" />
+              </button>
               </td>
             </tr>
           ))}
