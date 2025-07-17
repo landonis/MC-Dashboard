@@ -384,14 +384,23 @@ def get_versions():
 def get_directory_size(path):
     """Get directory size in MB"""
     try:
-        result = run_command(f"/usr/bin/sudo -u {MINECRAFT_USER} /usr/bin/du -sm '{path}' | cut -f1")
-        if result['success']:
-            return int(result['stdout'].strip())
-        return 0
-    except exception as e:
-        logger.error(f"get_directory_size error: {e}")
+        total_bytes = 0
+        for dirpath, dirnames, filenames in os.walk(path):
+            for f in filenames:
+                fp = os.path.join(dirpath, f)
+                try:
+                    total_bytes += os.path.getsize(fp)
+                except Exception as fe:
+                    logger.debug(f"Skipping {fp}: {fe}")
 
+        total_mb = round(total_bytes / (1024 * 1024), 2)
+        logger.debug(f"[walk] Calculated size for {path}: {total_mb} MB")
+        return total_mb
+    except Exception as e:
+        logger.error(f"[walk] Failed to calculate size of {path}: {e}")
         return 0
+
+    return 0
 
 def check_service_enabled():
     """Check if minecraft service is enabled"""
