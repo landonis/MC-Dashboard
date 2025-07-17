@@ -116,7 +116,7 @@ def get_server_status():
         # Get memory usage if running
         memory_info = {}
         if is_running:
-            mem_result = run_command("ps aux | grep '[j]ava.*minecraft' | awk '{print $6}'")
+            mem_result = run_command("/usr/bin/ps aux | /usr/bin/grep java | /usr/bin/grep -i minecraft | /usr/bin/awk '{print $6}'")
             if mem_result['success'] and mem_result['stdout'].strip():
                 try:
                     memory_kb = int(mem_result['stdout'].strip())
@@ -384,7 +384,7 @@ def get_versions():
 def get_directory_size(path):
     """Get directory size in MB"""
     try:
-        result = run_command(f"du -sm '{path}' | cut -f1")
+        result = run_command(f"/usr/bin/du -sm '{path}' | cut -f1")
         if result['success']:
             return int(result['stdout'].strip())
         return 0
