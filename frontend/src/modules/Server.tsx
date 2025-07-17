@@ -93,6 +93,17 @@ const Server: React.FC = () => {
     }
   }
 
+  const toggleAutoRestart = async () => {
+    try {
+      const endpoint = status?.service_enabled ? '/api/server/disable' : '/api/server/enable'
+      const response = await api.post(endpoint)
+      setSuccess(response.data.message)
+      fetchStatus()
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to update auto-restart setting')
+    }
+  }
+
   const handleBuildServer = async () => {
     setBuilding(true)
     setError('')
@@ -385,6 +396,8 @@ const Server: React.FC = () => {
           </div>
         )}
 
+
+        
         {/* Build Log */}
         {buildLog.length > 0 && (
           <div className="mt-4">
@@ -396,6 +409,32 @@ const Server: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Auto-Restart Toggle */}
+        {status?.server_exists && (
+          <div className="mt-6 border-t pt-4">
+            <h4 className="text-sm font-semibold text-gray-700 mb-2">Service Settings</h4>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Auto-Restart on Boot</p>
+                <p className="text-xs text-gray-400">
+                  {status.service_enabled ? 'Enabled via systemd' : 'Disabled'}
+                </p>
+              </div>
+              <button
+                onClick={toggleAutoRestart}
+                className={`px-4 py-2 rounded-md text-white transition-colors ${
+                  status.service_enabled
+                    ? 'bg-error-600 hover:bg-error-700'
+                    : 'bg-success-600 hover:bg-success-700'
+                }`}
+              >
+                {status.service_enabled ? 'Disable' : 'Enable'}
+              </button>
+            </div>
+          </div>
+        )}
+
       </div>
 
       {/* Server Status Output */}
