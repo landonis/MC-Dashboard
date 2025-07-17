@@ -52,7 +52,7 @@ const Server: React.FC = () => {
       fetchStatus()
       fetchVersions()
     }
-  }, [hasRole])
+  }, [])
 
   const fetchStatus = async () => {
     try {
