@@ -17,14 +17,26 @@ def ws_mod(sock):
     print("[Backend] Mod connected via WebSocket")
 
     while True:
-        try:
-            data = sock.receive()
-            if data is None:
-                break
-            print("[Backend] Received from mod:", data)
-        except Exception as e:
-            print("[Backend] Mod WebSocket error:", str(e))
+    try:
+        data = sock.receive()
+        if data is None:
             break
+
+        print("[Backend] Received from mod:", data)
+
+        try:
+            payload = json.loads(data)
+            if isinstance(payload, dict) and payload.get("event") == "reconnected":
+                print("[Backend] ⚡ Mod has reconnected to dashboard.")
+                # Optionally: emit to frontend, log to file, etc.
+
+        } except Exception as parse_error:
+            print("[Backend] Failed to parse mod message:", parse_error)
+
+    except Exception as e:
+        print("[Backend] Mod WebSocket error:", str(e))
+        break
+
 
     with mod_socket["lock"]:
         mod_socket["conn"] = None
