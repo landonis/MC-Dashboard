@@ -47,7 +47,8 @@ def run_command(cmd, cwd=None):
             capture_output=True, 
             text=True, 
             cwd=cwd,
-            timeout=300
+            timeout=300,
+            env=env
         )
         return {
             'success': result.returncode == 0,
