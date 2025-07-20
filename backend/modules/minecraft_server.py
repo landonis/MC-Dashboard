@@ -146,7 +146,7 @@ def enable_service():
     """Enable the Minecraft systemd service"""
     try:
         run_command("/usr/bin/systemctl daemon-reload")
-        result = run_command(f"/usr/bin/sudo /usr/bin/systemctl enable minecraft.service")
+        result = run_command(f"/usr/bin/systemctl enable minecraft.service")
 
         if result['success']:
             return jsonify({'message': 'Minecraft service enabled successfully'})
@@ -322,7 +322,7 @@ WantedBy=multi-user.target
         with open(temp_service_path, 'w') as f:
             f.write(service_content)
 
-        run_command(f"/usr/bin/sudo /bin/cp {temp_service_path} /etc/systemd/system/minecraft.service")
+        run_command(f"/bin/cp {temp_service_path} /etc/systemd/system/minecraft.service")
         os.remove(temp_service_path)
 
         # Set permissions
