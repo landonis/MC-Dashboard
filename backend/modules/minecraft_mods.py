@@ -20,6 +20,39 @@ MINECRAFT_USER = os.getenv("MINECRAFT_USER", "minecraft")
 SERVICE_USER = os.getenv("SERVICE_USER", "dashboardapp")
 MODS_DIR = os.path.join(MINECRAFT_DIR, "mods")
 DISABLED_MODS_DIR = os.path.join(MINECRAFT_DIR, "mods", "disabled")
+SYSTEMD_SERVICE_PATH = "/etc/systemd/system/dashboard-backend.service"
+GUNICORN_SERVICE_CONTENT = f"""[Unit]
+Description=MC Dashboard Backend WebSocket Service
+After=network.target
+
+[Service]
+User=dashboardapp
+WorkingDirectory=/opt/dashboard/backend
+ExecStart=/usr/bin/gunicorn backend.app:app --bind 0.0.0.0:3020 -k uvicorn.workers.UvicornWorker
+Restart=always
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
+"""
+
+def create_backend_service():
+    with open(SYSTEMD_SERVICE_PATH, 'w') as f:
+        f.write(GUNICORN_SERVICE_CONTENT)
+    subprocess.run(["systemctl", "daemon-reexec"])
+    subprocess.run(["systemctl", "daemon-reload"])
+    subprocess.run(["systemctl", "enable", "dashboard-backend.service"])
+    subprocess.run(["systemctl", "start", "dashboard-backend.service"])
+    print("[Mod] Dashboard backend service created and started.")
+
+
+def destroy_backend_service():
+    subprocess.run(["systemctl", "stop", "dashboard-backend.service"])
+    subprocess.run(["systemctl", "disable", "dashboard-backend.service"])
+    if os.path.exists(SYSTEMD_SERVICE_PATH):
+        os.remove(SYSTEMD_SERVICE_PATH)
+    subprocess.run(["systemctl", "daemon-reload"])
+    print("[Mod] Dashboard backend service stopped and removed.")
 
 # Create blueprint
 minecraft_mods_bp = Blueprint('minecraft_mods', __name__, url_prefix='/mods')
@@ -430,6 +463,7 @@ def install_dashboard_mod():
         # Set proper permissions
         run_command(f"/usr/bin/chown {MINECRAFT_USER}:{MINECRAFT_USER} '{target_path}'")
         run_command(f"/usr/bin/chmod 644 '{target_path}'")
+        create_backend_service()
         
         logger.info(f"Dashboard mod compiled and installed successfully: {target_filename}")
         return jsonify({
@@ -448,7 +482,7 @@ def delete_mod():
     try:
         data = request.get_json()
         filename = data.get('filename')
-        
+        destroy_backend_service()
         if not filename:
             return jsonify({'error': 'Filename required'}), 400
         
@@ -459,7 +493,7 @@ def delete_mod():
         
         if not os.path.exists(file_path):
             return jsonify({'error': 'Mod file not found'}), 404
-        
+
         os.remove(file_path)
         
         logger.info(f"Mod deleted successfully: {filename}")
