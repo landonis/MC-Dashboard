@@ -26,6 +26,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     { name: 'Dashboard', href: '/', icon: Home, requiredRole: 'user' },
     { name: 'Users', href: '/users', icon: Users, requiredRole: 'admin' },
     { name: 'Server', href: '/server', icon: Server, requiredRole: 'admin' },
+    { name: 'Mod Manager', href: '/mods', icon: Settings, requiredRole: 'admin' },
     { name: 'Drive Backup', href: '/drive', icon: Cloud, requiredRole: 'admin' },
     { name: 'System Info', href: '/system-info', icon: Monitor, requiredRole: 'admin' },
   ]
