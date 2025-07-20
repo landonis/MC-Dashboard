@@ -246,7 +246,7 @@ from modules.minecraft_mods import minecraft_mods_bp
 app.register_blueprint(system_info_bp, url_prefix='/modules')
 app.register_blueprint(rclone_drive_bp)
 app.register_blueprint(minecraft_server_bp)
-app.register_blueprint(minecraft_mods_bp, url_prefix='/api')
+app.register_blueprint(minecraft_mods_bp, url_prefix='/mods')
 #try:
 
 #    logger.info("System info module loaded successfully")
