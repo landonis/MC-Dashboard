@@ -230,7 +230,7 @@ echo "MINECRAFT_USER=minecraft" >> "$INSTALL_DIR/.env"
 log "Configuring sudo permissions for dashboardapp to manage Minecraft service..."
 
 cat <<EOF > "$SUDOERS_FILE"
-dashboardapp ALL=(ALL) NOPASSWD: /usr/bin/chown, /usr/bin/systemctl start minecraft.service, /usr/bin/systemctl stop minecraft.service, /usr/bin/systemctl restart minecraft.service, /usr/bin/systemctl enable minecraft.service, /usr/bin/systemctl disable minecraft.service, /usr/bin/gunicorn
+dashboardapp ALL=(ALL) NOPASSWD: /usr/bin/tee /etc/systemd/system/dashboard-mod.service, /usr/bin/chown, /usr/bin/systemctl start minecraft.service, /usr/bin/systemctl stop minecraft.service, /usr/bin/systemctl restart minecraft.service, /usr/bin/systemctl enable minecraft.service, /usr/bin/systemctl disable minecraft.service, /usr/bin/gunicorn
 dashboardapp ALL=(minecraft) NOPASSWD: /usr/bin/zip, /usr/bin/unzip, /usr/bin/rm, /usr/bin/du
 EOF
 
