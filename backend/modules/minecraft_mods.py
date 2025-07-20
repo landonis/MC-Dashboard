@@ -526,7 +526,7 @@ def install_dashboard_mod():
             shutil.rmtree(VENV_PATH)
     
         # Recreate the backend service with a new venv
-        from backend.modules.minecraft.mods import create_backend_service
+        from modules.minecraft.mods import create_backend_service
         result = create_backend_service()
         if isinstance(result, tuple):  # Error occurred
             return result
