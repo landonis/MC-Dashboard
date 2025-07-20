@@ -21,6 +21,7 @@ SERVICE_USER = os.getenv("SERVICE_USER", "dashboardapp")
 MODS_DIR = os.path.join(MINECRAFT_DIR, "mods")
 DISABLED_MODS_DIR = os.path.join(MINECRAFT_DIR, "mods", "disabled")
 SYSTEMD_SERVICE_PATH = "/etc/systemd/system/dashboard-backend.service"
+VENV_PATH = "/opt/dashboard-app/venv-mod"
 
 def run_command(cmd, cwd=None):
     """Run shell command safely and return result"""
