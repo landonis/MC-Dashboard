@@ -8,3 +8,4 @@ psutil==5.9.5
 Werkzeug==2.3.7
 gunicorn==21.2.0
 requests==2.31.0
+flask-sock==0.5.2
