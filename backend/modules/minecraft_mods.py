@@ -182,7 +182,7 @@ def compile_dashboard_mod():
         
         logger.info(f"Compiling dashboard mod from: {dashboard_mod_dir}")
 
-        if not os.path.exits(f"{dashboard_mod_dir}/gradlew.bat"):
+        if not os.path.exists(f"{dashboard_mod_dir}/gradlew.bat"):
             run_command(f"cd {dashboard_mod_dir}")
             run_command(f"gradle wrapper")
         # Clean previous builds
