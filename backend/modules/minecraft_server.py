@@ -145,8 +145,8 @@ def get_server_status():
 def enable_service():
     """Enable the Minecraft systemd service"""
     try:
-        run_command(f"/usr/bin/systemctl daemon-reload")
-        result = run_command(f"/usr/bin/systemctl enable minecraft.service")
+        run_command(f"/bin/sudo /usr/bin/systemctl daemon-reload")
+        result = run_command(f"/bin/sudo /usr/bin/systemctl enable minecraft.service")
 
         if result['success']:
             return jsonify({'message': 'Minecraft service enabled successfully'})
@@ -163,8 +163,8 @@ def enable_service():
 def disable_service():
     """Disable the Minecraft systemd service"""
     try:
-        run_command(f"/usr/bin/systemctl daemon-reload")
-        result = run_command(f"/usr/bin/systemctl disable minecraft.service")
+        run_command(f"/bin/sudo /usr/bin/systemctl daemon-reload")
+        result = run_command(f"/bin/sudo /usr/bin/systemctl disable minecraft.service")
 
         if result['success']:
             return jsonify({'message': 'Minecraft service disabled successfully'})
@@ -184,7 +184,7 @@ def start_server():
         if not os.path.exists('/opt/minecraft'):
             return jsonify({'error': 'Server not built yet'}), 400
         
-        result = run_command(f"/usr/bin/systemctl start minecraft.service")
+        result = run_command(f"/bin/sudo /usr/bin/systemctl start minecraft.service")
         
         if result['success']:
             return jsonify({'message': 'Server started successfully'})
@@ -202,7 +202,7 @@ def start_server():
 def stop_server():
     """Stop Minecraft server"""
     try:
-        result = run_command(f"/usr/bin/systemctl stop minecraft.service")
+        result = run_command(f"/bin/sudo /usr/bin/systemctl stop minecraft.service")
         
         if result['success']:
             return jsonify({'message': 'Server stopped successfully'})
@@ -220,7 +220,7 @@ def stop_server():
 def restart_server():
     """Restart Minecraft server"""
     try:
-        result = run_command(f"/usr/bin/systemctl restart minecraft.service")
+        result = run_command(f"/bin/sudo /usr/bin/systemctl restart minecraft.service")
         
         if result['success']:
             return jsonify({'message': 'Server restarted successfully'})
@@ -248,7 +248,7 @@ def build_server():
         
         # Stop existing server if running
         build_log.append("Stopping existing server...")
-        run_command(f"/usr/bin/systemctl stop minecraft.service")
+        run_command(f"/bin/sudo /usr/bin/systemctl stop minecraft.service")
         
         # Ensure minecraft directory exists
         build_log.append("Setting up minecraft directory...")
@@ -332,8 +332,8 @@ WantedBy=multi-user.target
         
         # Reload systemd and enable service
         build_log.append("Enabling systemd service...")
-        run_command("/usr/bin/systemctl daemon-reload")
-        run_command("/usr/bin/systemctl enable minecraft.service")
+        run_command("/bin/sudo /usr/bin/systemctl daemon-reload")
+        run_command("/bin/sudo /usr/bin/systemctl enable minecraft.service")
 
 
         
