@@ -231,7 +231,7 @@ log "Configuring sudo permissions for dashboardapp to manage Minecraft service..
 
 cat <<EOF > "$SUDOERS_FILE"
 dashboardapp ALL=(ALL) NOPASSWD: /usr/bin/chown, /usr/bin/systemctl start minecraft.service, /usr/bin/systemctl stop minecraft.service, /usr/bin/systemctl restart minecraft.service, /usr/bin/systemctl enable minecraft.service, /usr/bin/systemctl disable minecraft.service
-dashboardapp ALL=(minecraft) NOPASSWD: /usr/bin/zip, /usr/bin/unzip, /usr/bin/rm, /usr/bin/du, /bin/systemctl
+dashboardapp ALL=(minecraft) NOPASSWD: /usr/bin/zip, /usr/bin/unzip, /usr/bin/rm, /usr/bin/du
 EOF
 
 chmod 440 "$SUDOERS_FILE"
