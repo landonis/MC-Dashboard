@@ -51,6 +51,8 @@ jwt.init_app(app)
 
 CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": "*"}})
 
+
+
 # Authentication decorators
 def admin_required(f):
     @wraps(f)
@@ -244,20 +246,19 @@ from modules.minecraft_server import minecraft_server_bp
 from modules.minecraft_mods import minecraft_mods_bp
 from backend.modules.websocket_mod_bridge import minecraft_ws_bp
 
-app.register_blueprint(minecraft_ws_bp)
 app.register_blueprint(system_info_bp, url_prefix='/modules')
 app.register_blueprint(rclone_drive_bp)
 app.register_blueprint(minecraft_server_bp)
 app.register_blueprint(minecraft_mods_bp, url_prefix='/mods')
-#try:
+from flask_sock import Sock
+from backend.modules.websocket_mod_bridge import minecraft_ws_bp
 
-#    logger.info("System info module loaded successfully")
-#except ImportError as e:
- #   logger.error(f"Failed to load system info module: {str(e)}")
-#except Exception as e:
- #   logger.error(f"Error registering system info module: {str(e)}")
+def get_mod_only_app():
+    app = Flask(__name__)
+    Sock(app)
+    app.register_blueprint(minecraft_ws_bp)
+    return app
 
-# Health check endpoint
 
 @app.route('/health', methods=['GET'])
 def health_check():
