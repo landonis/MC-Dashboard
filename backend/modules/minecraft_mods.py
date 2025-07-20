@@ -76,20 +76,19 @@ Environment=PYTHONUNBUFFERED=1
 [Install]
 WantedBy=multi-user.target
 """)
-    run_command("/bin/sudo /ur/bin/systemctl daemon-reexec")
-    run_command("/bin/sudo /ur/bin/systemctl daemon-reload")
-    run_command("/bin/sudo /ur/bin/systemctl enable dashboard-mod.service")
-    run_command("/bin/sudo /ur/bin/systemctl start dashboard-mod.service")
+    run_command("/bin/sudo /usr/bin/systemctl daemon-reload")
+    run_command("/bin/sudo /usr/bin/systemctl enable dashboard-mod.service")
+    run_command("/bin/sudo /usr/bin/systemctl start dashboard-mod.service")
 
 
 
 def destroy_backend_service():
-    subprocess.run(["systemctl", "stop", "dashboard-backend.service"])
-    subprocess.run(["systemctl", "disable", "dashboard-backend.service"])
-    if os.path.exists(SYSTEMD_SERVICE_PATH):
-        os.remove(SYSTEMD_SERVICE_PATH)
-    subprocess.run(["systemctl", "daemon-reload"])
-    print("[Mod] Dashboard backend service stopped and removed.")
+    result = run_command("/usr/bin/systemctl status dashboard-mod.service")
+    if result["success"]:
+        run_command("/bin/sudo /usr/bin/systemctl stop dashboard-mod.service")
+        run_command("/bin/sudo /usr/bin/systemctl disable dashboard-mod.service")
+        subprocess.run(["systemctl", "disable", "dashboard-mod.service"])
+        print("[Mod] Dashboard backend service stopped and disabled.")
 
 # Create blueprint
 minecraft_mods_bp = Blueprint('minecraft_mods', __name__, url_prefix='/mods')
