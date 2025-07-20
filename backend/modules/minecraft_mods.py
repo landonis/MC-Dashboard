@@ -180,8 +180,6 @@ def compile_dashboard_mod():
         if not os.path.exists(dashboard_mod_dir):
             raise Exception(f"Dashboard mod source directory not found: {dashboard_mod_dir}")
 
-        run_command(f"/usr/bin/gradlew wrapper --gradle-version 8.8", cwd=dashboard_mod_dir)
-
         
         if not os.path.exists(os.path.join(dashboard_mod_dir, 'build.gradle')):
             raise Exception("build.gradle not found in dashboard-mod directory")
