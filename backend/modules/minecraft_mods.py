@@ -82,6 +82,30 @@ def ensure_mods_directory():
         logger.error(f"Failed to create mods directory: {str(e)}")
         return False
 
+def check_dashboard_mod_installed():
+    """Check if dashboard mod is installed"""
+    try:
+        if not os.path.exists(MODS_DIR):
+            return False
+        
+        for filename in os.listdir(MODS_DIR):
+            if filename.endswith('.jar') and 'dashboard-mod' in filename.lower():
+                return True
+        return False
+    except Exception as e:
+        logger.error(f"Failed to check dashboard mod: {str(e)}")
+        return False
+
+def get_dashboard_mod_download_url():
+    """Get dashboard mod download URL - placeholder for GitHub release or internal location"""
+    # This would typically fetch from GitHub releases API or internal repository
+    # For now, using a placeholder URL structure
+    return {
+        'url': 'https://github.com/landonis/dashboard-mod/releases/latest/download/dashboard-mod-1.0.0.jar',
+        'filename': 'dashboard-mod-1.0.0.jar',
+        'version': '1.0.0'
+    }
+
 def get_fabric_api_download_url(minecraft_version="1.20.1"):
     """Get latest Fabric API download URL from Modrinth"""
     try:
@@ -207,6 +231,7 @@ def get_mods_status():
             'mods': mods,
             'disabled_mods': disabled_mods,
             'fabric_api_installed': fabric_api_installed,
+            'dashboard_mod_installed': check_dashboard_mod_installed(),
             'mods_count': len(mods),
             'disabled_count': len(disabled_mods)
         })
@@ -300,6 +325,67 @@ def install_fabric_api():
     except Exception as e:
         logger.error(f"Install Fabric API error: {str(e)}")
         return jsonify({'error': 'Failed to install Fabric API'}), 500
+
+@minecraft_mods_bp.route('/check-dashboard-mod', methods=['GET'])
+@admin_required
+def check_dashboard_mod():
+    """Check if dashboard mod is installed"""
+    try:
+        installed = check_dashboard_mod_installed()
+        return jsonify({
+            'installed': installed,
+            'message': 'Dashboard mod is installed' if installed else 'Dashboard mod not found'
+        })
+    except Exception as e:
+        logger.error(f"Check dashboard mod error: {str(e)}")
+        return jsonify({'error': 'Failed to check dashboard mod'}), 500
+
+@minecraft_mods_bp.route('/install-dashboard-mod', methods=['POST'])
+@admin_required
+def install_dashboard_mod():
+    """Install dashboard mod from GitHub release or internal location"""
+    try:
+        # Ensure mods directory exists
+        if not ensure_mods_directory():
+            return jsonify({'error': 'Failed to create mods directory'}), 500
+        
+        # Check if already installed
+        if check_dashboard_mod_installed():
+            return jsonify({'error': 'Dashboard mod is already installed'}), 400
+        
+        # Get download information
+        mod_info = get_dashboard_mod_download_url()
+        if not mod_info:
+            return jsonify({'error': 'Failed to get dashboard mod download information'}), 500
+        
+        # Download dashboard mod
+        try:
+            response = requests.get(mod_info['url'], timeout=60)
+            if response.status_code == 200:
+                # Save to mods directory
+                file_path = os.path.join(MODS_DIR, mod_info['filename'])
+                with open(file_path, 'wb') as f:
+                    f.write(response.content)
+                
+                # Set proper permissions
+                run_command(f"/usr/bin/chown {MINECRAFT_USER}:{MINECRAFT_USER} '{file_path}'")
+                run_command(f"/usr/bin/chmod 644 '{file_path}'")
+                
+                logger.info(f"Dashboard mod installed successfully: {mod_info['filename']}")
+                return jsonify({
+                    'message': f'Dashboard mod {mod_info["version"]} installed successfully',
+                    'filename': mod_info['filename'],
+                    'version': mod_info['version']
+                })
+            else:
+                return jsonify({'error': f'Download failed with status {response.status_code}'}), 500
+        except requests.RequestException as e:
+            logger.error(f"Download error: {str(e)}")
+            return jsonify({'error': 'Failed to download dashboard mod - mod may not be available yet'}), 500
+        
+    except Exception as e:
+        logger.error(f"Install dashboard mod error: {str(e)}")
+        return jsonify({'error': 'Failed to install dashboard mod'}), 500
 
 @minecraft_mods_bp.route('/delete', methods=['POST'])
 @admin_required

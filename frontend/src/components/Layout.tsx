@@ -7,6 +7,7 @@ import {
   Monitor, 
   Cloud,
   Server,
+  Zap,
   LogOut, 
   Menu, 
   X,
@@ -27,6 +28,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     { name: 'Users', href: '/users', icon: Users, requiredRole: 'admin' },
     { name: 'Server', href: '/server', icon: Server, requiredRole: 'admin' },
     { name: 'Mod Manager', href: '/mods', icon: Settings, requiredRole: 'admin' },
+    { name: 'Dashboard Mod', href: '/dashboard-mod', icon: Zap, requiredRole: 'admin' },
     { name: 'Drive Backup', href: '/drive', icon: Cloud, requiredRole: 'admin' },
     { name: 'System Info', href: '/system-info', icon: Monitor, requiredRole: 'admin' },
   ]
