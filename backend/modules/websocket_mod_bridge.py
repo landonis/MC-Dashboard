@@ -30,7 +30,7 @@ def ws_mod(sock):
                 print("[Backend] ⚡ Mod has reconnected to dashboard.")
                 # Optionally: emit to frontend, log to file, etc.
 
-        } except Exception as parse_error:
+        except Exception as parse_error:
             print("[Backend] Failed to parse mod message:", parse_error)
 
     except Exception as e:
