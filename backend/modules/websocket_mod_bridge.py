@@ -17,8 +17,8 @@ def ws_mod(sock):
     print("[Backend] Mod connected via WebSocket")
 
     
-    try:
-        while True:
+    while True:
+        try:
             data = sock.receive()
             if data is None:
                 break
@@ -34,9 +34,9 @@ def ws_mod(sock):
             except Exception as parse_error:
                 print("[Backend] Failed to parse mod message:", parse_error)
 
-    except Exception as e:
-        print("[Backend] Mod WebSocket error:", str(e))
-        break
+        except Exception as e:
+            print("[Backend] Mod WebSocket error:", str(e))
+            break
 
 
     with mod_socket["lock"]:
