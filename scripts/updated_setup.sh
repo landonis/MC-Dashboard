@@ -62,7 +62,8 @@ apt-get install -y \
     wget \
     unzip \
     software-properties-common \
-    openjdk-17-jdk
+    openjdk-17-jdk \
+    gradle
 # Close running backend if needed
 if systemctl list-units --type=service --all | grep -q "dashboard-backend.service"; then
     echo "Stopping dashboard-backend service..."
