@@ -176,22 +176,20 @@ def compile_dashboard_mod():
         
         if not os.path.exists(dashboard_mod_dir):
             raise Exception(f"Dashboard mod source directory not found: {dashboard_mod_dir}")
+
         
         if not os.path.exists(os.path.join(dashboard_mod_dir, 'build.gradle')):
             raise Exception("build.gradle not found in dashboard-mod directory")
         
         logger.info(f"Compiling dashboard mod from: {dashboard_mod_dir}")
-
-        if not os.path.exists(f"{dashboard_mod_dir}/gradle"):
-            run_command(f"cd {dashboard_mod_dir}")
-            run_command(f"gradle wrapper")
+        
         # Clean previous builds
-        clean_result = run_command(f"{dashboard_mod_dir}/gradlew clean", cwd=dashboard_mod_dir)
+        clean_result = run_command("gradle clean", cwd=dashboard_mod_dir)
         if not clean_result['success']:
             logger.warning(f"Gradle clean failed: {clean_result['stderr']}")
         
         # Build the mod
-        build_result = run_command(f"{dashboard_mod_dir}/gradlew build", cwd=dashboard_mod_dir)
+        build_result = run_command("gradle build", cwd=dashboard_mod_dir)
         if not build_result['success']:
             raise Exception(f"Gradle build failed: {build_result['stderr']}")
         
