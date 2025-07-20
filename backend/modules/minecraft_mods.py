@@ -38,6 +38,8 @@ def admin_required(f):
 
 def run_command(cmd, cwd=None):
     """Run shell command safely and return result"""
+    env = os.environ.copy()
+    env['PATH'] += os.pathsep + '/bin'  # Ensure /bin is included
     try:
         result = subprocess.run(
             cmd, 
