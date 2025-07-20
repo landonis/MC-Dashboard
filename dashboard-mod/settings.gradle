@@ -1,1 +1,8 @@
 rootProject.name = "dashboard-mod"
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        maven { url "https://maven.fabricmc.net/" }
+        mavenCentral()
+    }
+}
