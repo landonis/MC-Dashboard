@@ -63,7 +63,43 @@ apt-get install -y \
     unzip \
     software-properties-common \
     openjdk-17-jdk \
-    gradle
+    
+
+### Install Gradle 8.8 ###
+GRADLE_VERSION=8.8
+GRADLE_DIR="/opt/gradle/gradle-${GRADLE_VERSION}"
+GRADLE_SCRIPT="/etc/profile.d/gradle.sh"
+
+echo "[INFO] Installing Gradle ${GRADLE_VERSION}..."
+
+# Remove old Gradle if needed
+sudo apt remove -y gradle >/dev/null 2>&1 || true
+
+# Download and extract Gradle
+if [ ! -d "$GRADLE_DIR" ]; then
+    wget -q https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip -P /tmp
+    sudo unzip -q -d /opt/gradle /tmp/gradle-${GRADLE_VERSION}-bin.zip
+    rm /tmp/gradle-${GRADLE_VERSION}-bin.zip
+fi
+
+# Set up Gradle in PATH
+sudo tee "$GRADLE_SCRIPT" >/dev/null <<EOF
+export GRADLE_HOME=${GRADLE_DIR}
+export PATH=\$GRADLE_HOME/bin:\$PATH
+EOF
+
+sudo chmod +x "$GRADLE_SCRIPT"
+source "$GRADLE_SCRIPT"
+
+# Verify installation
+if gradle -v | grep -q "Gradle ${GRADLE_VERSION}"; then
+    echo "[INFO] Gradle ${GRADLE_VERSION} installed successfully"
+else
+    echo "[ERROR] Failed to install Gradle ${GRADLE_VERSION}"
+    exit 1
+fi
+
+
 # Close running backend if needed
 if systemctl list-units --type=service --all | grep -q "dashboard-backend.service"; then
     echo "Stopping dashboard-backend service..."
