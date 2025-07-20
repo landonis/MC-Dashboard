@@ -61,21 +61,23 @@ def run_command(cmd, cwd=None):
 
 
 def create_backend_service():
-    with open(SYSTEMD_SERVICE_PATH, 'w') as f:
-        f.write(f"""[Unit]
-Description=MC Dashboard Mod WebSocket Backend
-After=network.target
+    service_content = f"""[Unit]
+    Description=MC Dashboard Mod WebSocket Backend
+    After=network.target
+    
+    [Service]
+    User=dashboardapp
+    WorkingDirectory=/opt/dashboard/backend
+    ExecStart=/usr/bin/env python3 -m gunicorn backend.app:get_mod_only_app --bind 0.0.0.0:3020 -k uvicorn.workers.UvicornWorker
+    Restart=always
+    Environment=PYTHONUNBUFFERED=1
+    
+    [Install]
+    WantedBy=multi-user.target
+    """
+    
+    run_command(f"echo '{service_content}' | /bin/sudo /usr/bin/tee /etc/systemd/system/dashboard-mod.service > /dev/null")
 
-[Service]
-User=dashboardapp
-WorkingDirectory=/opt/dashboard/backend
-ExecStart=/usr/bin/env python3 -m gunicorn backend.app:get_mod_only_app --bind 0.0.0.0:3020 -k uvicorn.workers.UvicornWorker
-Restart=always
-Environment=PYTHONUNBUFFERED=1
-
-[Install]
-WantedBy=multi-user.target
-""")
     run_command("/bin/sudo /usr/bin/systemctl daemon-reload")
     run_command("/bin/sudo /usr/bin/systemctl enable dashboard-mod.service")
     run_command("/bin/sudo /usr/bin/systemctl start dashboard-mod.service")
@@ -87,7 +89,6 @@ def destroy_backend_service():
     if result["success"]:
         run_command("/bin/sudo /usr/bin/systemctl stop dashboard-mod.service")
         run_command("/bin/sudo /usr/bin/systemctl disable dashboard-mod.service")
-        subprocess.run(["systemctl", "disable", "dashboard-mod.service"])
         print("[Mod] Dashboard backend service stopped and disabled.")
 
 # Create blueprint
@@ -584,12 +585,12 @@ def restart_server_with_recovery():
             recovery_log.append(f"Attempt {attempt + 1}: Starting server...")
             
             # Stop server first
-            stop_result = run_command("/usr/bin/systemctl stop minecraft.service")
+            stop_result = run_command("/bin/sudo /usr/bin/systemctl stop minecraft.service")
             if not stop_result['success']:
                 recovery_log.append(f"Warning: Failed to stop server cleanly")
             
             # Start server
-            start_result = run_command("/usr/bin/systemctl start minecraft.service")
+            start_result = run_command("/bin/sudo /usr/bin/systemctl start minecraft.service")
             if not start_result['success']:
                 recovery_log.append(f"Attempt {attempt + 1}: Server failed to start")
                 
