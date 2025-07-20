@@ -17,6 +17,7 @@ load_dotenv()
 
 MINECRAFT_DIR = os.getenv("MINECRAFT_DIR", "/opt/minecraft")
 MINECRAFT_USER = os.getenv("MINECRAFT_USER", "minecraft")
+SERVICE_USER = os.getenv("SERVICE_USER", "dashboardapp")
 MODS_DIR = os.path.join(MINECRAFT_DIR, "mods")
 DISABLED_MODS_DIR = os.path.join(MINECRAFT_DIR, "mods", "disabled")
 
@@ -98,10 +99,9 @@ def check_dashboard_mod_installed():
 
 def get_dashboard_mod_download_url():
     """Get dashboard mod download URL - placeholder for GitHub release or internal location"""
-    # This would typically fetch from GitHub releases API or internal repository
-    # For now, using a placeholder URL structure
+    # Updated to use local compilation instead of external download
     return {
-        'url': 'https://github.com/landonis/dashboard-mod/releases/latest/download/dashboard-mod-1.0.0.jar',
+        'url': 'local_compilation',
         'filename': 'dashboard-mod-1.0.0.jar',
         'version': '1.0.0'
     }
@@ -166,6 +166,60 @@ def get_fabric_api_download_url(minecraft_version="1.20.1"):
     except Exception as e:
         logger.error(f"Failed to get Fabric API download URL: {str(e)}")
         return None
+
+def compile_dashboard_mod():
+    """Compile dashboard mod from source using Gradle"""
+    try:
+        # Get the project root directory (parent of backend)
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        dashboard_mod_dir = os.path.join(project_root, 'dashboard-mod')
+        
+        if not os.path.exists(dashboard_mod_dir):
+            raise Exception(f"Dashboard mod source directory not found: {dashboard_mod_dir}")
+        
+        if not os.path.exists(os.path.join(dashboard_mod_dir, 'build.gradle')):
+            raise Exception("build.gradle not found in dashboard-mod directory")
+        
+        logger.info(f"Compiling dashboard mod from: {dashboard_mod_dir}")
+        
+        # Clean previous builds
+        clean_result = run_command("./gradlew clean", cwd=dashboard_mod_dir)
+        if not clean_result['success']:
+            logger.warning(f"Gradle clean failed: {clean_result['stderr']}")
+        
+        # Build the mod
+        build_result = run_command("./gradlew build", cwd=dashboard_mod_dir)
+        if not build_result['success']:
+            raise Exception(f"Gradle build failed: {build_result['stderr']}")
+        
+        # Find the built jar file
+        libs_dir = os.path.join(dashboard_mod_dir, 'build', 'libs')
+        if not os.path.exists(libs_dir):
+            raise Exception("Build libs directory not found")
+        
+        jar_files = [f for f in os.listdir(libs_dir) if f.endswith('.jar') and 'sources' not in f]
+        if not jar_files:
+            raise Exception("No jar file found in build/libs directory")
+        
+        # Use the first jar file found (should be the main mod jar)
+        jar_filename = jar_files[0]
+        jar_path = os.path.join(libs_dir, jar_filename)
+        
+        logger.info(f"Found compiled jar: {jar_filename}")
+        return {
+            'jar_path': jar_path,
+            'jar_filename': jar_filename,
+            'success': True
+        }
+        
+    except Exception as e:
+        logger.error(f"Dashboard mod compilation failed: {str(e)}")
+        return {
+            'jar_path': None,
+            'jar_filename': None,
+            'success': False,
+            'error': str(e)
+        }
 
 @minecraft_mods_bp.route('/status', methods=['GET'])
 @admin_required
@@ -343,7 +397,7 @@ def check_dashboard_mod():
 @minecraft_mods_bp.route('/install-dashboard-mod', methods=['POST'])
 @admin_required
 def install_dashboard_mod():
-    """Install dashboard mod from GitHub release or internal location"""
+    """Compile and install dashboard mod from source"""
     try:
         # Ensure mods directory exists
         if not ensure_mods_directory():
@@ -353,39 +407,35 @@ def install_dashboard_mod():
         if check_dashboard_mod_installed():
             return jsonify({'error': 'Dashboard mod is already installed'}), 400
         
-        # Get download information
-        mod_info = get_dashboard_mod_download_url()
-        if not mod_info:
-            return jsonify({'error': 'Failed to get dashboard mod download information'}), 500
+        logger.info("Starting dashboard mod compilation and installation")
         
-        # Download dashboard mod
-        try:
-            response = requests.get(mod_info['url'], timeout=60)
-            if response.status_code == 200:
-                # Save to mods directory
-                file_path = os.path.join(MODS_DIR, mod_info['filename'])
-                with open(file_path, 'wb') as f:
-                    f.write(response.content)
-                
-                # Set proper permissions
-                run_command(f"/usr/bin/chown {MINECRAFT_USER}:{MINECRAFT_USER} '{file_path}'")
-                run_command(f"/usr/bin/chmod 644 '{file_path}'")
-                
-                logger.info(f"Dashboard mod installed successfully: {mod_info['filename']}")
-                return jsonify({
-                    'message': f'Dashboard mod {mod_info["version"]} installed successfully',
-                    'filename': mod_info['filename'],
-                    'version': mod_info['version']
-                })
-            else:
-                return jsonify({'error': f'Download failed with status {response.status_code}'}), 500
-        except requests.RequestException as e:
-            logger.error(f"Download error: {str(e)}")
-            return jsonify({'error': 'Failed to download dashboard mod - mod may not be available yet'}), 500
+        # Compile the dashboard mod
+        compile_result = compile_dashboard_mod()
+        if not compile_result['success']:
+            return jsonify({'error': f'Compilation failed: {compile_result.get("error", "Unknown error")}'}), 500
+        
+        # Copy compiled jar to mods directory
+        source_jar = compile_result['jar_path']
+        target_filename = compile_result['jar_filename']
+        target_path = os.path.join(MODS_DIR, target_filename)
+        
+        # Copy the file
+        import shutil
+        shutil.copy2(source_jar, target_path)
+        
+        # Set proper permissions
+        run_command(f"/usr/bin/chown {MINECRAFT_USER}:{MINECRAFT_USER} '{target_path}'")
+        run_command(f"/usr/bin/chmod 644 '{target_path}'")
+        
+        logger.info(f"Dashboard mod compiled and installed successfully: {target_filename}")
+        return jsonify({
+            'message': f'Dashboard mod compiled and installed successfully',
+            'filename': target_filename,
+            'compiled': True
+        })
         
     except Exception as e:
         logger.error(f"Install dashboard mod error: {str(e)}")
-        return jsonify({'error': 'Failed to install dashboard mod'}), 500
 
 @minecraft_mods_bp.route('/delete', methods=['POST'])
 @admin_required
