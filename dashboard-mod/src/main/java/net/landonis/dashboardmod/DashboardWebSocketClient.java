@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 public class DashboardWebSocketClient {
     private static WebSocket webSocket;
     private static MinecraftServer server;
+    private static boolean wasPreviouslyConnected = false;
 
     public static void connect() {
         OkHttpClient client = new OkHttpClient.Builder()
@@ -26,6 +27,16 @@ public class DashboardWebSocketClient {
             @Override
             public void onOpen(WebSocket webSocket, Response response) {
                 System.out.println("[DashboardMod] WebSocket connected.");
+
+                // If this isn't the first connection, notify backend of reconnect
+                if (wasPreviouslyConnected) {
+                    JsonObject msg = new JsonObject();
+                    msg.addProperty("event", "reconnected");
+                    send(msg.toString());
+                } else {
+                    wasPreviouslyConnected = true;
+                }
+
                 startUpdateLoop();
             }
 
@@ -68,10 +79,27 @@ public class DashboardWebSocketClient {
             }
 
             @Override
+            public void onClosed(WebSocket webSocket, int code, String reason) {
+                System.out.println("[DashboardMod] WebSocket closed: " + reason);
+                retryConnection();
+            }
+
+            @Override
             public void onFailure(WebSocket webSocket, Throwable t, Response response) {
                 System.err.println("[DashboardMod] WebSocket error: " + t.getMessage());
+                retryConnection();
             }
         });
+    }
+
+    private static void retryConnection() {
+        new Thread(() -> {
+            try {
+                Thread.sleep(5000);
+                System.out.println("[DashboardMod] Attempting reconnect...");
+                connect();
+            } catch (InterruptedException ignored) {}
+        }).start();
     }
 
     public static void send(String json) {
@@ -101,8 +129,7 @@ public class DashboardWebSocketClient {
                 try {
                     Thread.sleep(5000);
                     sendServerStatus();
-                } catch (InterruptedException ignored) {
-                }
+                } catch (InterruptedException ignored) {}
             }
         }).start();
     }
