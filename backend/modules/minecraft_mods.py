@@ -21,29 +21,28 @@ SERVICE_USER = os.getenv("SERVICE_USER", "dashboardapp")
 MODS_DIR = os.path.join(MINECRAFT_DIR, "mods")
 DISABLED_MODS_DIR = os.path.join(MINECRAFT_DIR, "mods", "disabled")
 SYSTEMD_SERVICE_PATH = "/etc/systemd/system/dashboard-backend.service"
-GUNICORN_SERVICE_CONTENT = f"""[Unit]
-Description=MC Dashboard Backend WebSocket Service
+
+def create_backend_service():
+    with open(SYSTEMD_SERVICE_PATH, 'w') as f:
+        f.write(f"""[Unit]
+Description=MC Dashboard Mod WebSocket Backend
 After=network.target
 
 [Service]
 User=dashboardapp
 WorkingDirectory=/opt/dashboard/backend
-ExecStart=/usr/bin/gunicorn backend.app:app --bind 0.0.0.0:3020 -k uvicorn.workers.UvicornWorker
+ExecStart=/usr/bin/env python3 -m gunicorn backend.app:get_mod_only_app --bind 0.0.0.0:3020 -k uvicorn.workers.UvicornWorker
 Restart=always
 Environment=PYTHONUNBUFFERED=1
 
 [Install]
 WantedBy=multi-user.target
-"""
-
-def create_backend_service():
-    with open(SYSTEMD_SERVICE_PATH, 'w') as f:
-        f.write(GUNICORN_SERVICE_CONTENT)
+""")
     subprocess.run(["systemctl", "daemon-reexec"])
     subprocess.run(["systemctl", "daemon-reload"])
-    subprocess.run(["systemctl", "enable", "dashboard-backend.service"])
-    subprocess.run(["systemctl", "start", "dashboard-backend.service"])
-    print("[Mod] Dashboard backend service created and started.")
+    subprocess.run(["systemctl", "enable", "dashboard-mod.service"])
+    subprocess.run(["systemctl", "start", "dashboard-mod.service"])
+
 
 
 def destroy_backend_service():
