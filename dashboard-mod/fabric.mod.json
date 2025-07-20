@@ -1,0 +1,22 @@
+
+{
+  "schemaVersion": 1,
+  "id": "dashboardmod",
+  "version": "1.0.0",
+  "name": "Dashboard Integration Mod",
+  "description": "Mod to integrate Minecraft server with the dashboard.",
+  "authors": ["YourName"],
+  "contact": {},
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "net.landonis.dashboardmod.DashboardMod"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.14.21",
+    "fabric": "*",
+    "minecraft": "1.20.1"
+  }
+}
