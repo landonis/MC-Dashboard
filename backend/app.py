@@ -255,8 +255,15 @@ from backend.modules.websocket_mod_bridge import minecraft_ws_bp
 
 def get_mod_only_app():
     app = Flask(__name__)
-    Sock(app)
-    app.register_blueprint(minecraft_ws_bp)
+    app.config.from_object(Config)
+
+    # Ensure db is registered
+    db.init_app(app)
+
+    # Register only mod endpoints
+    from modules.minecraft_mods import mod_bp
+    app.register_blueprint(mod_bp, url_prefix='/mod')
+
     return app
 
 
