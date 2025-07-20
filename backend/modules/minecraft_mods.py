@@ -61,34 +61,45 @@ def run_command(cmd, cwd=None):
 
 
 def create_backend_service():
-    # Ensure gunicorn is installed system-wide
-    gunicorn_check = run_command("/usr/bin/which gunicorn")
-    if not gunicorn_check["success"] or not gunicorn_check["stdout"].strip():
-        install_gunicorn = run_command("/bin/sudo /usr/bin/apt install gunicorn")
-        if not install_gunicorn["success"]:
-            return jsonify({"error": "Failed to install gunicorn: " + install_gunicorn["stderr"]}), 500
+    venv_path = "/opt/dashboard-app/venv-mod"
+    python_bin = f"{venv_path}/bin/python"
+    pip_bin = f"{venv_path}/bin/pip"
+    gunicorn_bin = f"{venv_path}/bin/gunicorn"
 
+    # Step 1: Create virtualenv if not exists
+    if not os.path.isdir(venv_path):
+        result = run_command(f"/usr/bin/python3 -m venv {venv_path}")
+        if not result["success"]:
+            return jsonify({"error": "Failed to create virtualenv: " + result["stderr"]}), 500
+
+    # Step 2: Install dependencies
+    install = run_command(
+        f"{pip_bin} install --upgrade pip && "
+        f"{pip_bin} install 'uvicorn[standard]' gunicorn flask-sock"
+    )
+    if not install["success"]:
+        return jsonify({"error": "Failed to install dependencies: " + install["stderr"]}), 500
+
+    # Step 3: Write systemd service using venv path
     service_content = f"""[Unit]
-    Description=MC Dashboard Mod WebSocket Backend
-    After=network.target
-    
-    [Service]
-    User=dashboardapp
-    WorkingDirectory=/opt/dashboard-app/backend
-    ExecStart=/usr/local/bin/gunicorn backend.app:get_mod_only_app --bind 0.0.0.0:3020 -k uvicorn.workers.UvicornWorker
-    Restart=always
-    Environment=PYTHONUNBUFFERED=1
-    
-    [Install]
-    WantedBy=multi-user.target
-    """
-    
-    run_command(f"echo '{service_content}' | /bin/sudo /usr/bin/tee /etc/systemd/system/dashboard-mod.service > /dev/null")
+Description=MC Dashboard Mod WebSocket Backend
+After=network.target
 
+[Service]
+User=dashboardapp
+WorkingDirectory=/opt/dashboard-app
+ExecStart={gunicorn_bin} backend.app:get_mod_only_app --bind 0.0.0.0:3020 -k uvicorn.workers.UvicornWorker
+Restart=always
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
+"""
+
+    run_command(f"echo '{service_content}' | /bin/sudo /usr/bin/tee /etc/systemd/system/dashboard-mod.service > /dev/null")
     run_command("/bin/sudo /usr/bin/systemctl daemon-reload")
     run_command("/bin/sudo /usr/bin/systemctl enable dashboard-mod.service")
     run_command("/bin/sudo /usr/bin/systemctl start dashboard-mod.service")
-
 
 
 def destroy_backend_service():
