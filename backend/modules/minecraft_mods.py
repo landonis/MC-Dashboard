@@ -22,6 +22,44 @@ MODS_DIR = os.path.join(MINECRAFT_DIR, "mods")
 DISABLED_MODS_DIR = os.path.join(MINECRAFT_DIR, "mods", "disabled")
 SYSTEMD_SERVICE_PATH = "/etc/systemd/system/dashboard-backend.service"
 
+def run_command(cmd, cwd=None):
+    """Run shell command safely and return result"""
+    try:
+        env = os.environ.copy()
+        env["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+        result = subprocess.run(
+            cmd, 
+            shell=True, 
+            capture_output=True, 
+            text=True, 
+            cwd=cwd,
+            timeout=300
+        )
+        
+        
+        return {
+            'success': result.returncode == 0,
+            'stdout': result.stdout,
+            'stderr': result.stderr,
+            'returncode': result.returncode
+        }
+    except subprocess.TimeoutExpired:
+        return {
+            'success': False,
+            'stdout': '',
+            'stderr': 'Command timed out',
+            'returncode': -1
+        }
+    except Exception as e:
+        return {
+            'success': False,
+            'stdout': '',
+            'stderr': str(e),
+            'returncode': -1
+        }
+
+
 def create_backend_service():
     with open(SYSTEMD_SERVICE_PATH, 'w') as f:
         f.write(f"""[Unit]
@@ -38,10 +76,10 @@ Environment=PYTHONUNBUFFERED=1
 [Install]
 WantedBy=multi-user.target
 """)
-    subprocess.run(["systemctl", "daemon-reexec"])
-    subprocess.run(["systemctl", "daemon-reload"])
-    subprocess.run(["systemctl", "enable", "dashboard-mod.service"])
-    subprocess.run(["systemctl", "start", "dashboard-mod.service"])
+    run_command("/bin/sudo /ur/bin/systemctl daemon-reexec")
+    run_command("/bin/sudo /ur/bin/systemctl daemon-reload")
+    run_command("/bin/sudo /ur/bin/systemctl enable dashboard-mod.service")
+    run_command("/bin/sudo /ur/bin/systemctl start dashboard-mod.service")
 
 
 
