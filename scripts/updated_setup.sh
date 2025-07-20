@@ -406,6 +406,16 @@ systemctl is-active --quiet dashboard-backend || error_exit "Backend service fai
 systemctl is-active --quiet dashboard-frontend || error_exit "Frontend service failed to start"
 systemctl is-active --quiet nginx || error_exit "Nginx service failed to start"
 
+# Ensure Gradle wrapper is executable for dashboard mod compilation
+log "Setting up Gradle permissions for dashboard mod..."
+if [ -f "$INSTALL_DIR/dashboard-mod/gradlew" ]; then
+    chmod +x "$INSTALL_DIR/dashboard-mod/gradlew"
+    chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR/dashboard-mod"
+    log "Gradle wrapper permissions set"
+else
+    log "Gradle wrapper not found, will be available after repository clone"
+fi
+
 # Set proper permissions
 chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR"
 chmod -R 755 "$INSTALL_DIR"
