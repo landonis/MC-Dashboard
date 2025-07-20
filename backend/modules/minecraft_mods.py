@@ -518,7 +518,17 @@ def install_dashboard_mod():
         # Set proper permissions
         run_command(f"/usr/bin/chown {MINECRAFT_USER}:{MINECRAFT_USER} '{target_path}'")
         run_command(f"/usr/bin/chmod 644 '{target_path}'")
-        create_backend_service()
+        
+        # Destroy existing venv if it exists
+        if os.path.exists(VENV_PATH):
+            print("[Mod] Removing old virtualenv...")
+            shutil.rmtree(VENV_PATH)
+    
+        # Recreate the backend service with a new venv
+        from backend.modules.minecraft.mods import create_backend_service
+        result = create_backend_service()
+        if isinstance(result, tuple):  # Error occurred
+            return result
         
         logger.info(f"Dashboard mod compiled and installed successfully: {target_filename}")
         return jsonify({
