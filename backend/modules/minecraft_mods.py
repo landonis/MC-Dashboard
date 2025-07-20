@@ -68,7 +68,7 @@ def create_backend_service():
     [Service]
     User=dashboardapp
     WorkingDirectory=/opt/dashboard-app/backend
-    ExecStart=/usr/bin/env python3 -m gunicorn backend.app:get_mod_only_app --bind 0.0.0.0:3020 -k uvicorn.workers.UvicornWorker
+    ExecStart=/usr/local/bin/gunicorn backend.app:get_mod_only_app --bind 0.0.0.0:3020 -k uvicorn.workers.UvicornWorker
     Restart=always
     Environment=PYTHONUNBUFFERED=1
     
