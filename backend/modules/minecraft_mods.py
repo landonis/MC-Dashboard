@@ -181,7 +181,10 @@ def compile_dashboard_mod():
             raise Exception("build.gradle not found in dashboard-mod directory")
         
         logger.info(f"Compiling dashboard mod from: {dashboard_mod_dir}")
-        
+
+        if not os.path.exits(f"{dashboard_mod_dir}/gradlew.bat")
+            run_command(f"cd {dashboard_mod_dir}")
+            run_command(f"gradle wrapper")
         # Clean previous builds
         clean_result = run_command(f"{dashboard_mod_dir}/gradlew clean", cwd=dashboard_mod_dir)
         if not clean_result['success']:
