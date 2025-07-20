@@ -171,7 +171,7 @@ def compile_dashboard_mod():
     """Compile dashboard mod from source using Gradle"""
     try:
         # Get the project root directory (parent of backend)
-        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
         dashboard_mod_dir = os.path.join(project_root, 'dashboard-mod')
         
         if not os.path.exists(dashboard_mod_dir):
