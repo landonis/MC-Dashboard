@@ -61,6 +61,13 @@ def run_command(cmd, cwd=None):
 
 
 def create_backend_service():
+    # Ensure gunicorn is installed system-wide
+    gunicorn_check = run_command("/usr/bin/which gunicorn")
+    if not gunicorn_check["success"] or not gunicorn_check["stdout"].strip():
+        install_gunicorn = run_command("/bin/sudo /usr/bin/apt install gunicorn")
+        if not install_gunicorn["success"]:
+            return jsonify({"error": "Failed to install gunicorn: " + install_gunicorn["stderr"]}), 500
+
     service_content = f"""[Unit]
     Description=MC Dashboard Mod WebSocket Backend
     After=network.target
@@ -68,7 +75,7 @@ def create_backend_service():
     [Service]
     User=dashboardapp
     WorkingDirectory=/opt/dashboard-app/backend
-    ExecStart=/usr/local/bin/gunicorn backend.app:get_mod_only_app --bind 0.0.0.0:3020 -k uvicorn.workers.UvicornWorker
+    ExecStart=/usr/bin/gunicorn backend.app:get_mod_only_app --bind 0.0.0.0:3020 -k uvicorn.workers.UvicornWorker
     Restart=always
     Environment=PYTHONUNBUFFERED=1
     
