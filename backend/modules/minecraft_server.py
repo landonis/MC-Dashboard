@@ -322,7 +322,7 @@ WantedBy=multi-user.target
         with open(temp_service_path, 'w') as f:
             f.write(service_content)
 
-        run_command(f"/bin/cp {temp_service_path} /etc/systemd/system/minecraft.service")
+        run_command(f"/usr/bin/sudo /bin/cp {temp_service_path} /etc/systemd/system/minecraft.service")
         os.remove(temp_service_path)
 
         # Set permissions
