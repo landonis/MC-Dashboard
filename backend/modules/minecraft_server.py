@@ -220,6 +220,27 @@ def stop_server():
 def restart_server():
     """Restart Minecraft server"""
     try:
+                # Create systemd service
+        service_content = f"""[Unit]
+Description=Minecraft Server
+After=network.target
+
+[Service]
+Type=simple
+User={MINECRAFT_USER}
+Group={MINECRAFT_USER}
+WorkingDirectory={MINECRAFT_DIR}
+ExecStart=/usr/bin/java -Xmx{memory_gb}G -jar {MINECRAFT_DIR}/fabric-server-launch.jar nogui
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target"""
+        run_command(f"echo '{service_content}' | /bin/sudo /usr/bin/tee /etc/systemd/system/minecraft.service > /dev/null")
+
+        
         result = run_command(f"/bin/sudo /usr/bin/systemctl restart minecraft.service")
         
         if result['success']:
