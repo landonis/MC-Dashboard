@@ -7,6 +7,10 @@ import java.net.http.WebSocket.Listener;
 import java.util.concurrent.CompletionStage;
 import net.minecraft.server.MinecraftServer;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonParser;
+
 public class DashboardWebSocketClient {
     private static WebSocket webSocket;
     private static MinecraftServer serverInstance;
@@ -98,7 +102,7 @@ public class DashboardWebSocketClient {
                         break;
                     case "setDay":
                         if (server != null) {
-                            server.getOverworld().setTimeOfDay(1000);
+                            DashboardWebSocketClient.serverInstance.getOverworld().setTimeOfDay(1000);
                         }
                         break;
                     case "listPlayers":
