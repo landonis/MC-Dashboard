@@ -9,7 +9,7 @@ Group=dashboardapp
 WorkingDirectory=/opt/dashboard-app/
 Environment=PATH=/opt/dashboard-app/backend/venv/bin
 Environment=PYTHONPATH=/opt/dashboard-app
-ExecStart=/bin/bash -c 'source /opt/dashboard-app/backend/venv/bin/activate && exec gunicorn backend.app:create_app --bind 0.0.0.0:5000'
+ExecStart=/opt/dashboard-app/backend/venv/bin/gunicorn run:app --bind 0.0.0.0:5000
 Restart=always
 RestartSec=10
 StandardOutput=journal
