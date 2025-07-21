@@ -320,14 +320,9 @@ StandardError=journal
 [Install]
 WantedBy=multi-user.target
 """
+        run_command(f"echo '{service_content}' | /bin/sudo /usr/bin/tee /etc/systemd/system/minecraft.service > /dev/null")
+
         
-        temp_service_path = f"{MINECRAFT_DIR}/minecraft.service"
-        with open(temp_service_path, 'w') as f:
-            f.write(service_content)
-
-        run_command(f"/usr/bin/sudo /bin/cp {temp_service_path} /etc/systemd/system/minecraft.service")
-        os.remove(temp_service_path)
-
         # Set permissions
         build_log.append("Setting permissions...")
         run_command(f"/bin/chown -R {MINECRAFT_USER}:{MINECRAFT_USER} {MINECRAFT_DIR}")
