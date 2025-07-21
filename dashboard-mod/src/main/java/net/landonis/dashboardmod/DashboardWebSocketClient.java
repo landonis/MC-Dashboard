@@ -44,8 +44,38 @@ public class DashboardWebSocketClient {
         public CompletionStage<?> onText(WebSocket webSocket, CharSequence data, boolean last) {
             System.out.println("[DashboardMod] Received: " + data);
             webSocket.request(1);
+        
+            try {
+                JsonObject message = JsonParser.parseString(data.toString()).getAsJsonObject();
+                String type = message.get("type").getAsString();
+        
+                switch (type) {
+                    case "sendMessage":
+                        if (message.has("content")) {
+                            String content = message.get("content").getAsString();
+                            DashboardWebSocketClient.sendMessage(content);
+                        }
+                        break;
+                    case "setDay":
+                        if (server != null) {
+                            server.getOverworld().setTimeOfDay(1000);
+                        }
+                        break;
+                    case "listPlayers":
+                        DashboardWebSocketClient.listPlayers();
+                        break;
+                    // Add more command types here
+                    default:
+                        System.out.println("[DashboardMod] Unknown message type: " + type);
+                        break;
+                }
+            } catch (Exception e) {
+                System.err.println("[DashboardMod] Error parsing message: " + e.getMessage());
+            }
+        
             return null;
         }
+        
 
         @Override
         public void onError(WebSocket webSocket, Throwable error) {
@@ -53,3 +83,43 @@ public class DashboardWebSocketClient {
         }
     }
 }
+
+public static void sendMessage(String content) {
+    if (webSocket != null && server != null) {
+        // Broadcast to players
+        server.getPlayerManager().broadcast(Text.of("[Dashboard] " + content), false);
+
+        // Send confirmation via WebSocket
+        JsonObject message = new JsonObject();
+        message.addProperty("type", "message_sent");
+        message.addProperty("content", content);
+
+        webSocket.sendText(message.toString(), true);
+    } else {
+        System.err.println("[DashboardMod] Cannot send message: missing server or websocket.");
+    }
+}
+
+
+public static void listPlayers() {
+    if (webSocket != null && server != null) {
+        List<String> playerNames = server.getPlayerManager().getPlayerList().stream()
+                .map(player -> player.getEntityName())
+                .collect(Collectors.toList());
+
+        JsonObject response = new JsonObject();
+        response.addProperty("type", "players");
+
+        JsonArray playersArray = new JsonArray();
+        for (String name : playerNames) {
+            playersArray.add(name);
+        }
+
+        // Always return the players array, even if it's empty
+        response.add("players", playersArray);
+        webSocket.sendText(response.toString(), true);
+    } else {
+        System.err.println("[DashboardMod] Cannot list players: missing server or websocket.");
+    }
+}
+
