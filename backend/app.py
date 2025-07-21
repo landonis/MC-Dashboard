@@ -174,13 +174,11 @@ def create_app():
     from modules.rclone_drive import rclone_drive_bp
     from modules.minecraft_server import minecraft_server_bp
     from modules.minecraft_mods import minecraft_mods_bp
-    from modules.websocket_mod_bridge import minecraft_ws_bp
 
     app.register_blueprint(system_info_bp, url_prefix='/modules')
     app.register_blueprint(rclone_drive_bp)
     app.register_blueprint(minecraft_server_bp)
     app.register_blueprint(minecraft_mods_bp, url_prefix='/mods')
-    app.register_blueprint(minecraft_ws_bp)
 
     @app.route('/health')
     def health_check():
@@ -210,8 +208,8 @@ def create_app():
 
 
 def get_mod_only_app():
-    flask_app = create_mod_app()
-    return WsgiToAsgi(flask_app)
+    starlette_app = create_mod_app()
+    return starlette_app  # ASGI ready
 
 
 # Dev mode entry
