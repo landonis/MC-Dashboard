@@ -287,7 +287,7 @@ def compile_dashboard_mod():
             logger.warning(f"Gradle clean failed: {clean_result['stderr']}")
         
        # Create gradle wrapper if not present
-        if not os.path.exists(os.path.join(dashboard_mod_dir, 'gradlew'):
+        if not os.path.exists(os.path.join(dashboard_mod_dir, 'gradlew')):
             run_command("/opt/gradle/gradle-8.8/bin/gradle wrapper", cwd=dashboard_mod_dir)
 
             run_command("chmod +x ./gradlew", cwd=dashboard_mod_dir)
