@@ -16,7 +16,7 @@ import com.google.gson.JsonParser;
 
 public class DashboardWebSocketClient {
     private static WebSocket webSocket;
-    private static MinecraftServer serverInstance;
+    public static MinecraftServer serverInstance;
 
     public static void connect(MinecraftServer server) {
         serverInstance = server;  // Save server instance
