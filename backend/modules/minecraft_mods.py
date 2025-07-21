@@ -450,7 +450,7 @@ def install_fabric_api():
             return jsonify({'error': 'Failed to create mods directory'}), 500
         
         # Get Fabric API download info
-        fabric_info = get_fabric_api_download_url()
+        fabric_info = get_fabric_api_download_url(minecraft_version="1.21.8")
         if not fabric_info:
             return jsonify({'error': 'Failed to get Fabric API download information'}), 500
         
