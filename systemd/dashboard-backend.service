@@ -6,7 +6,7 @@ After=network.target
 Type=simple
 User=dashboardapp
 Group=dashboardapp
-WorkingDirectory=/opt/dashboard-app/backend
+WorkingDirectory=/opt/dashboard-app/
 Environment=PATH=/opt/dashboard-app/backend/venv/bin
 Environment=PYTHONPATH=/opt/dashboard-app
 ExecStart=/opt/dashboard-app/backend/venv/bin/gunicorn backend.app:create_app --bind 0.0.0.0:5000
