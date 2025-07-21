@@ -1,3 +1,4 @@
+# TODO Fix mem implementation in restart
 import os
 import subprocess
 import json
@@ -230,7 +231,7 @@ Type=simple
 User={MINECRAFT_USER}
 Group={MINECRAFT_USER}
 WorkingDirectory={MINECRAFT_DIR}
-ExecStart=/usr/bin/java -Xmx{memory_gb}G -jar {MINECRAFT_DIR}/fabric-server-launch.jar nogui
+ExecStart=/usr/bin/java -Xmx20G -jar {MINECRAFT_DIR}/fabric-server-launch.jar nogui
 Restart=always
 RestartSec=10
 StandardOutput=journal
