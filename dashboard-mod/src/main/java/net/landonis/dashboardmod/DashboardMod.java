@@ -11,10 +11,11 @@ public class DashboardMod implements ModInitializer {
         System.out.println("[DashboardMod] Initializing...");
 
         // Connect to WebSocket
-        DashboardWebSocketClient.connect();
+        
 
         // When the server has started, pass it to the WebSocket client
         ServerLifecycleEvents.SERVER_STARTED.register((MinecraftServer server) -> {
+            DashboardWebSocketClient.connect(server);
             DashboardWebSocketClient.setServerInstance(server);
             DashboardWebSocketClient.sendServerStatus();
         });
