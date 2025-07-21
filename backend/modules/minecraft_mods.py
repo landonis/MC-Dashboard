@@ -185,7 +185,7 @@ def check_dashboard_mod_installed():
             return False
         
         for filename in os.listdir(MODS_DIR):
-            if filename.endswith('.jar') and 'dashboard-mod' in filename.lower():
+            if filename.endswith('.jar') and 'dashboardmod' in filename.lower():
                 return True
         return False
     except Exception as e:
@@ -286,15 +286,10 @@ def compile_dashboard_mod():
         if not clean_result['success']:
             logger.warning(f"Gradle clean failed: {clean_result['stderr']}")
         
-       # Create gradle wrapper if not present
-        if not os.path.exists(os.path.join(dashboard_mod_dir, 'gradlew')):
-            run_command("/opt/gradle/gradle-8.8/bin/gradle wrapper", cwd=dashboard_mod_dir)
-
-            run_command("chmod +x ./gradlew", cwd=dashboard_mod_dir)
-        
+       
         # Build the mod
         
-        build_result = run_command("./gradlew build", cwd=dashboard_mod_dir)
+        build_result = run_command("/opt/gradle/gradle-8.8/bin/gradle build", cwd=dashboard_mod_dir)
         if not build_result['success']:
             raise Exception(f"Gradle build failed: {build_result['stderr']}")
         
