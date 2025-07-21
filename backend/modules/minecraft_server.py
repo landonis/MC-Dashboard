@@ -268,7 +268,7 @@ def build_server():
         build_log.append(f"Downloading Fabric installer for Minecraft {minecraft_version}...")
         fabric_url = f"https://meta.fabricmc.net/v2/versions/loader/{minecraft_version}/{fabric_version}/{installer_version}/server/jar"
         
-        installer_path = f"{MINECRAFT_DIR}/fabric-installer-{fabric_version}.jar"
+        installer_path = f"{MINECRAFT_DIR}/fabric-installer.jar"
         download_result = run_command(f"/usr/bin/curl -L -o '{installer_path}' '{fabric_url}'")
         
         if not download_result['success']:
@@ -308,7 +308,7 @@ Type=simple
 User={MINECRAFT_USER}
 Group={MINECRAFT_USER}
 WorkingDirectory={MINECRAFT_DIR}
-ExecStart=/usr/bin/java -Xmx{memory_gb}G -jar {MINECRAFT_DIR}/fabric-installer-{fabric_version}.jar nogui
+ExecStart=/usr/bin/java -Xmx{memory_gb}G -jar {MINECRAFT_DIR}/fabric-installer.jar nogui
 Restart=always
 RestartSec=10
 StandardOutput=journal
