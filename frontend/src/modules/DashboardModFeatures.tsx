@@ -57,13 +57,13 @@ const DashboardModFeatures: React.FC = () => {
 
     try {
       if (command === 'sendMessage') {
-        await api.post('/mod/send_message', { content: messageText })
+        await api.post('http://localhost:3020/mod/send_message', { content: messageText })
         setCommandOutput(`[Dashboard Mod] Sent message: "${messageText}"`)
       } else if (command === 'setDay') {
-        await api.post('/mod/set_day')
+        await api.post('http://localhost:3020/mod/set_day')
         setCommandOutput(`[Dashboard Mod] Set time to day.`)
       } else if (command === 'listPlayers') {
-        const response = await api.get('/mod/list_players')
+        const response = await api.get('http://localhost:3020/mod/list_players')
         setCommandOutput(`[Dashboard Mod] Online Players:\n${response.data.players.join(', ')}`)
       } else {
         setCommandOutput(`[Dashboard Mod] Unknown command.`)
