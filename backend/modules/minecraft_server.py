@@ -281,6 +281,9 @@ def build_server():
         build_log.append("Accepting Minecraft EULA...")
         with open(f'{MINECRAFT_DIR}/eula.txt', 'w') as f:
             f.write('eula=true\n')
+
+        run_command(f"/usr/bin/java -jar fabric-installer.jar server -mcversion 1.20.1 -downloadMinecraft")
+
         
         # Create server.properties
         build_log.append("Creating server configuration...")
@@ -308,7 +311,7 @@ Type=simple
 User={MINECRAFT_USER}
 Group={MINECRAFT_USER}
 WorkingDirectory={MINECRAFT_DIR}
-ExecStart=/usr/bin/java -Xmx{memory_gb}G -jar {MINECRAFT_DIR}/fabric-installer.jar nogui
+ExecStart=/usr/bin/java -Xmx{memory_gb}G -jar {MINECRAFT_DIR}/fabric-server-launch.jar nogui
 Restart=always
 RestartSec=10
 StandardOutput=journal
