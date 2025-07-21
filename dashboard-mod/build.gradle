@@ -5,14 +5,8 @@ plugins {
 }
 
 repositories {
-    gradlePluginPortal()
     mavenCentral()
     maven { url = "https://maven.fabricmc.net/" }
-}
-
-
-configurations {
-    shadow
 }
 
 dependencies {
@@ -29,17 +23,10 @@ loom {
     accessWidenerPath = file("src/main/resources/dashboardmod.accesswidener")
 }
 
-sourceSets {
-    main {
-        resources {
-            srcDirs = ['src/main/resources']
-        }
-    }
-}
-
-tasks.named("shadowJar") {
-    archiveClassifier.set("") // removes -all suffix
-    configurations = [project.configurations.shadow]
+tasks.register("shadowJar", com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar) {
+    configurations = [project.configurations.runtimeClasspath]
+    archiveClassifier.set("") // overwrite default
+    from sourceSets.main.output
 }
 
 tasks.named("remapJar") {
