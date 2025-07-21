@@ -5,6 +5,9 @@ import java.net.http.HttpClient;
 import java.net.http.WebSocket;
 import java.net.http.WebSocket.Listener;
 import java.util.concurrent.CompletionStage;
+import java.util.List;
+import java.util.stream.Collectors;
+import net.minecraft.text.Text;
 import net.minecraft.server.MinecraftServer;
 
 import com.google.gson.JsonObject;
@@ -38,9 +41,9 @@ public class DashboardWebSocketClient {
     }
 
     public static void sendMessage(String content) {
-        if (webSocket != null && server != null) {
+        if (webSocket != null && DashboardWebSocketClient.serverInstance != null) {
             // Broadcast to players
-            server.getPlayerManager().broadcast(Text.of("[Dashboard] " + content), false);
+            DashboardWebSocketClient.serverInstance.getPlayerManager().broadcast(Text.of("[Dashboard] " + content), false);
     
             // Send confirmation via WebSocket
             JsonObject message = new JsonObject();
@@ -55,8 +58,8 @@ public class DashboardWebSocketClient {
 
 
     public static void listPlayers() {
-        if (webSocket != null && server != null) {
-            List<String> playerNames = server.getPlayerManager().getPlayerList().stream()
+        if (webSocket != null && DashboardWebSocketClient.serverInstance != null) {
+            List<String> playerNames = DashboardWebSocketClient.serverInstance.getPlayerManager().getPlayerList().stream()
                     .map(player -> player.getEntityName())
                     .collect(Collectors.toList());
     
