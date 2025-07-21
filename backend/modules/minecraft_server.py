@@ -98,7 +98,7 @@ def get_server_status():
         
         # Check if server directory exists
         service_exists = os.path.exists('/etc/systemd/system/minecraft.service')
-        server_exists = os.path.exists('/opt/minecraft/fabric-server.jar') and service_exists
+        server_exists = os.path.exists('/opt/minecraft/fabric-installer.jar') and service_exists
         
         # Get world info if server exists
         world_info = {}
