@@ -1,11 +1,12 @@
+repositories {
+    gradlePluginPortal()
+    mavenCentral()
+    maven { url = "https://maven.fabricmc.net/" }
+}
+
 plugins {
     id "fabric-loom" version "1.6.9"
     id "com.github.johnrengelman.shadow" version "7.1.3"
-}
-
-repositories {
-    mavenCentral()
-    maven { url = "https://maven.fabricmc.net/" }
 }
 
 configurations {
