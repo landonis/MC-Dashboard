@@ -1,7 +1,7 @@
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
-from backend.modules.websocket_mod_bridge import routes as mod_ws_routes
+from backend.modules import websocket_mod_bridge
 
 # Optional: import Flask app if you want to mount any legacy Flask Blueprints
 # from flask import Flask
@@ -19,15 +19,6 @@ from backend.modules.websocket_mod_bridge import routes as mod_ws_routes
 #     app.register_blueprint(minecraft_mods_bp, url_prefix='/mod')
 #     return app
 
-def create_mod_app():
-    middleware = [
-        Middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
-    ]
-
-    app = Starlette(routes=mod_ws_routes, middleware=middleware)
-
-    # Optional: mount Flask if needed
-    # flask_app = get_flask_app()
-    # app.mount("/flask", WSGIMiddleware(flask_app))
-
+def create_mod_app() -> Starlette:
+    app = Starlette(debug=True, routes=websocket_mod_bridge.routes)
     return app
