@@ -59,9 +59,11 @@ public class DashboardWebSocketClient {
 
     public static void listPlayers() {
         if (webSocket != null && DashboardWebSocketClient.serverInstance != null) {
-            List<String> playerNames = DashboardWebSocketClient.serverInstance.getPlayerManager().getPlayerList().stream()
-                    .map(player -> player.getEntityName())
-                    .collect(Collectors.toList());
+            List<String> playerNames = DashboardWebSocketClient.server.getPlayerManager()
+                .getPlayerList()
+                .stream()
+                .map(player -> player.getName().getString())
+                .collect(Collectors.toList());
     
             JsonObject response = new JsonObject();
             response.addProperty("type", "players");
@@ -104,7 +106,7 @@ public class DashboardWebSocketClient {
                         }
                         break;
                     case "setDay":
-                        if (server != null) {
+                        if (DashboardWebSocketClient.serverInstance != null) {
                             DashboardWebSocketClient.serverInstance.getOverworld().setTimeOfDay(1000);
                         }
                         break;
