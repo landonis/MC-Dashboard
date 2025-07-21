@@ -250,24 +250,8 @@ log "Configuring systemd services..."
 
 # Create Gunicorn systemd service
 log "Creating Gunicorn systemd service..."
-cat <<EOF > /etc/systemd/system/dashboard-backend.service
-[Unit]
-Description=Gunicorn instance to serve dashboard backend
-After=network.target
+cp /opt/dashboard-app/systemd/dashboard-backend.service /etc/systemd/system/dashboard-backend.service
 
-[Service]
-Type=simple
-User=$SERVICE_USER
-Group=$SERVICE_USER
-WorkingDirectory=$INSTALL_DIR/backend
-Environment="PATH=$INSTALL_DIR/backend/venv/bin"
-ExecStart=$INSTALL_DIR/backend/venv/bin/gunicorn -w 4 -b 127.0.0.1:5000 app:app
-Restart=always
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-EOF
 
 # Enable and start Gunicorn service
 log "Enabling and starting dashboard-backend service..."
