@@ -33,6 +33,46 @@ public class DashboardWebSocketClient {
         }
     }
 
+    public static void sendMessage(String content) {
+        if (webSocket != null && server != null) {
+            // Broadcast to players
+            server.getPlayerManager().broadcast(Text.of("[Dashboard] " + content), false);
+    
+            // Send confirmation via WebSocket
+            JsonObject message = new JsonObject();
+            message.addProperty("type", "message_sent");
+            message.addProperty("content", content);
+    
+            webSocket.sendText(message.toString(), true);
+        } else {
+            System.err.println("[DashboardMod] Cannot send message: missing server or websocket.");
+        }
+    }
+
+
+    public static void listPlayers() {
+        if (webSocket != null && server != null) {
+            List<String> playerNames = server.getPlayerManager().getPlayerList().stream()
+                    .map(player -> player.getEntityName())
+                    .collect(Collectors.toList());
+    
+            JsonObject response = new JsonObject();
+            response.addProperty("type", "players");
+    
+            JsonArray playersArray = new JsonArray();
+            for (String name : playerNames) {
+                playersArray.add(name);
+            }
+    
+            // Always return the players array, even if it's empty
+            response.add("players", playersArray);
+            webSocket.sendText(response.toString(), true);
+        } else {
+            System.err.println("[DashboardMod] Cannot list players: missing server or websocket.");
+        }
+    }
+
+    
     private static class WebSocketListener implements Listener {
         @Override
         public void onOpen(WebSocket webSocket) {
@@ -82,44 +122,8 @@ public class DashboardWebSocketClient {
             System.err.println("[DashboardMod] WebSocket error: " + error.getMessage());
         }
     }
+
+
 }
 
-public static void sendMessage(String content) {
-    if (webSocket != null && server != null) {
-        // Broadcast to players
-        server.getPlayerManager().broadcast(Text.of("[Dashboard] " + content), false);
-
-        // Send confirmation via WebSocket
-        JsonObject message = new JsonObject();
-        message.addProperty("type", "message_sent");
-        message.addProperty("content", content);
-
-        webSocket.sendText(message.toString(), true);
-    } else {
-        System.err.println("[DashboardMod] Cannot send message: missing server or websocket.");
-    }
-}
-
-
-public static void listPlayers() {
-    if (webSocket != null && server != null) {
-        List<String> playerNames = server.getPlayerManager().getPlayerList().stream()
-                .map(player -> player.getEntityName())
-                .collect(Collectors.toList());
-
-        JsonObject response = new JsonObject();
-        response.addProperty("type", "players");
-
-        JsonArray playersArray = new JsonArray();
-        for (String name : playerNames) {
-            playersArray.add(name);
-        }
-
-        // Always return the players array, even if it's empty
-        response.add("players", playersArray);
-        webSocket.sendText(response.toString(), true);
-    } else {
-        System.err.println("[DashboardMod] Cannot list players: missing server or websocket.");
-    }
-}
 
