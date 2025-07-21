@@ -11,6 +11,7 @@ from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from asgiref.wsgi import WsgiToAsgi
+from mod_api import create_mod_app
 from flask_jwt_extended import (
     JWTManager, create_access_token, get_jwt_identity, jwt_required,
     set_access_cookies, unset_jwt_cookies
@@ -209,7 +210,6 @@ def create_app():
 
 
 def get_mod_only_app():
-    from mod_api import create_mod_app
     flask_app = create_mod_app()
     return WsgiToAsgi(flask_app)
 
