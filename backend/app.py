@@ -17,7 +17,7 @@ from flask_jwt_extended import (
 from dotenv import load_dotenv
 
 # Import models and db
-from backend.models import db, User
+from .models import db, User
 
 # Load environment variables
 load_dotenv()
