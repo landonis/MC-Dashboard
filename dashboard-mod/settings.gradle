@@ -5,4 +5,4 @@ pluginManagement {
         mavenCentral()
     }
 }
-rootProject.name = "dashboard-mod"
+rootProject.name = "dashboardmod"
