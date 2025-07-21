@@ -1,77 +1,73 @@
-from flask import Blueprint, request, jsonify
-from flask_sock import Sock
-import threading
+from starlette.endpoints import WebSocketEndpoint
+from starlette.websockets import WebSocket, WebSocketDisconnect
+from starlette.routing import WebSocketRoute, Route
+from starlette.requests import Request
+from starlette.responses import JSONResponse
+import asyncio
 import json
 
-minecraft_ws_bp = Blueprint('minecraft_ws', __name__)
-sock = Sock(minecraft_ws_bp)
-
-# Keep track of active WebSocket connection to the Fabric mod
-mod_socket = {"conn": None, "lock": threading.Lock()}
+mod_socket = {"conn": None, "lock": asyncio.Lock()}
 
 
-@sock.route('/ws/minecraft')
-def ws_mod(sock):
-    with mod_socket["lock"]:
-        mod_socket["conn"] = sock
-    print("[Backend] Mod connected via WebSocket")
+class ModWebSocket(WebSocketEndpoint):
+    encoding = "text"
 
-    
-    while True:
+    async def on_connect(self, websocket: WebSocket):
+        await websocket.accept()
+        async with mod_socket["lock"]:
+            mod_socket["conn"] = websocket
+        print("[Backend] Mod connected via WebSocket")
+
+    async def on_receive(self, websocket: WebSocket, data):
+        print("[Backend] Received from mod:", data)
         try:
-            data = sock.receive()
-            if data is None:
-                break
-    
-            print("[Backend] Received from mod:", data)
-    
-            try:
-                payload = json.loads(data)
-                if isinstance(payload, dict) and payload.get("event") == "reconnected":
-                    print("[Backend] ⚡ Mod has reconnected to dashboard.")
-                    # Optionally: emit to frontend, log to file, etc.
-    
-            except Exception as parse_error:
-                print("[Backend] Failed to parse mod message:", parse_error)
-
+            payload = json.loads(data)
+            if isinstance(payload, dict) and payload.get("event") == "reconnected":
+                print("[Backend] ⚡ Mod has reconnected to dashboard.")
         except Exception as e:
-            print("[Backend] Mod WebSocket error:", str(e))
-            break
+            print("[Backend] Failed to parse mod message:", e)
+
+    async def on_disconnect(self, websocket: WebSocket, close_code: int):
+        async with mod_socket["lock"]:
+            mod_socket["conn"] = None
+        print("[Backend] Mod WebSocket disconnected")
 
 
-    with mod_socket["lock"]:
-        mod_socket["conn"] = None
-    print("[Backend] Mod WebSocket disconnected")
-
-
-def send_to_mod(message: dict) -> dict:
-    with mod_socket["lock"]:
+async def send_to_mod(message: dict) -> dict:
+    async with mod_socket["lock"]:
         conn = mod_socket["conn"]
         if conn is None:
             return {"success": False, "error": "Mod not connected"}
         try:
-            conn.send(json.dumps(message))
+            await conn.send_text(json.dumps(message))
             return {"success": True}
         except Exception as e:
-            return {"success": False, "error": str(e)}    
+            return {"success": False, "error": str(e)}
 
 
-@minecraft_ws_bp.route('/mod/send_message', methods=['POST'])
-def send_message_to_mod():
-    content = request.json.get("content")
+async def send_message_to_mod(request: Request):
+    body = await request.json()
+    content = body.get("content")
     if not content:
-        return jsonify({"error": "Missing content"}), 400
-    result = send_to_mod({"type": "sendMessage", "content": content})
-    return jsonify(result)
+        return JSONResponse({"error": "Missing content"}, status_code=400)
+    result = await send_to_mod({"type": "sendMessage", "content": content})
+    return JSONResponse(result)
 
 
-@minecraft_ws_bp.route('/mod/set_day', methods=['POST'])
-def set_day():
-    result = send_to_mod({"type": "setDay"})
-    return jsonify(result)
+async def set_day(request: Request):
+    result = await send_to_mod({"type": "setDay"})
+    return JSONResponse(result)
 
 
-@minecraft_ws_bp.route('/mod/list_players', methods=['GET'])
-def list_players():
-    result = send_to_mod({"type": "listPlayers"})
-    return jsonify(result)
+async def list_players(request: Request):
+    result = await send_to_mod({"type": "listPlayers"})
+    return JSONResponse(result)
+
+
+# Export Starlette-compatible routes
+routes = [
+    WebSocketRoute("/ws/minecraft", ModWebSocket),
+    Route("/mod/send_message", send_message_to_mod, methods=["POST"]),
+    Route("/mod/set_day", set_day, methods=["POST"]),
+    Route("/mod/list_players", list_players, methods=["GET"]),
+]
