@@ -10,3 +10,4 @@ gunicorn==21.2.0
 requests==2.31.0
 flask-sock==0.5.2
 uvicorn[standard]==0.23.2
+asgiref>=3.0
