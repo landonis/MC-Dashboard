@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "dashboardmod",
+  "version": "1.0.0",
+  "name": "Dashboard Mod",
+  "description": "Connects Minecraft server to external dashboard",
+  "authors": ["YourName"],
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "net.landonis.dashboardmod.DashboardMod"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.14.0",
+    "fabric": "*",
+    "minecraft": ">=1.20.1"
+  }
+}
