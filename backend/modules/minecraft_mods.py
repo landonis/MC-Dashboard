@@ -115,6 +115,7 @@ def destroy_backend_service():
 
 # Create blueprint
 minecraft_mods_bp = Blueprint('minecraft_mods', __name__, url_prefix='/mods')
+mod_proxy_bp = Blueprint('mod_proxy', __name__, url_prefix='/ws-conn')
 
 def admin_required(f):
     @wraps(f)
@@ -696,3 +697,30 @@ def restart_server_with_recovery():
     except Exception as e:
         logger.error(f"Restart with recovery error: {str(e)}")
         return jsonify({'error': 'Failed to restart server with recovery'}), 500
+
+@mod_proxy_bp.route('/send_message', methods=['POST'])
+@admin_required
+def proxy_send_message():
+    try:
+        resp = requests.post('http://localhost:3020/mod/send_message', json=request.get_json())
+        return jsonify(resp.json()), resp.status_code
+    except Exception as e:
+        return jsonify({'error': f'Mod backend not reachable: {str(e)}'}), 500
+
+@mod_proxy_bp.route('/set_day', methods=['POST'])
+@admin_required
+def proxy_set_day():
+    try:
+        resp = requests.post('http://localhost:3020/mod/set_day')
+        return jsonify(resp.json()), resp.status_code
+    except Exception as e:
+        return jsonify({'error': f'Mod backend not reachable: {str(e)}'}), 500
+
+@mod_proxy_bp.route('/list_players', methods=['GET'])
+@admin_required
+def proxy_list_players():
+    try:
+        resp = requests.get('http://localhost:3020/mod/list_players')
+        return jsonify(resp.json()), resp.status_code
+    except Exception as e:
+        return jsonify({'error': f'Mod backend not reachable: {str(e)}'}), 500
