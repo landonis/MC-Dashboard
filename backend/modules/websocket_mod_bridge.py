@@ -16,6 +16,8 @@ class ModWebSocket(WebSocketEndpoint):
         await websocket.accept()
         async with mod_socket["lock"]:
             mod_socket["conn"] = websocket
+            print("[on_connect]Current conn id:", id(mod_socket["conn"]))
+
         print("[Backend] Mod connected via WebSocket")
 
     async def on_receive(self, websocket: WebSocket, data):
@@ -34,7 +36,10 @@ class ModWebSocket(WebSocketEndpoint):
 
 
 async def send_to_mod(message: dict) -> dict:
+    
     async with mod_socket["lock"]:
+        print("Current conn id:", id(mod_socket["conn"]))
+
         conn = mod_socket["conn"]
         if conn is None:
             return {"success": False, "error": "Mod not connected"}
