@@ -1,5 +1,6 @@
 plugins {
     id "fabric-loom" version "1.6.9"
+    id 'com.github.johnrengelman.shadow' version '7.1.3'
 }
 
 repositories {
@@ -8,16 +9,33 @@ repositories {
 }
 
 dependencies {
-    minecraft "com.mojang:minecraft:1.20.1"
-    mappings "net.fabricmc:yarn:1.20.1+build.10:v2"
-    modImplementation "net.fabricmc:fabric-loader:0.14.21"
-    modImplementation "net.fabricmc.fabric-api:fabric-api:0.92.6+1.20.1"
+    minecraft "com.mojang:minecraft:1.21.8"
+    mappings "net.fabricmc:yarn:1.21.8+build.1:v2"
+    modImplementation "net.fabricmc:fabric-loader:0.16.10"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:0.129.0+1.21.8"
     implementation "com.squareup.okhttp3:okhttp:4.12.0"
+    shadow("com.squareup.okhttp3:okhttp:4.12.0") // Add this
 }
+
+loom {
+    accessWidenerPath = file("src/main/resources/dashboardmod.accesswidener")
+}
+
 sourceSets {
     main {
         resources {
             srcDirs = ['src/main/resources']
         }
     }
+}
+
+
+tasks.named("shadowJar") {
+    archiveClassifier.set("") // removes -all suffix
+    configurations = [project.configurations.shadow]
+}
+
+tasks.named("remapJar") {
+    dependsOn tasks.named("shadowJar")
+    input.set(tasks.named("shadowJar").get().archiveFile)
 }
