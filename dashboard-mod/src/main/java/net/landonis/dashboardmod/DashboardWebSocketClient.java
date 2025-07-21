@@ -59,7 +59,7 @@ public class DashboardWebSocketClient {
 
     public static void listPlayers() {
         if (webSocket != null && DashboardWebSocketClient.serverInstance != null) {
-            List<String> playerNames = DashboardWebSocketClient.server.getPlayerManager()
+            List<String> playerNames = DashboardWebSocketClient.serverInstance.getPlayerManager()
                 .getPlayerList()
                 .stream()
                 .map(player -> player.getName().getString())
