@@ -215,7 +215,7 @@ def get_mod_only_app():
     db.init_app(app)
 
     from modules.minecraft_mods import minecraft_mods_bp
-    app.register_blueprint(mod_bp, url_prefix='/mod')
+    app.register_blueprint(minecraft_mods_bp, url_prefix='/mod')
 
     from backend.modules.websocket_mod_bridge import minecraft_ws_bp
     app.register_blueprint(minecraft_ws_bp)
