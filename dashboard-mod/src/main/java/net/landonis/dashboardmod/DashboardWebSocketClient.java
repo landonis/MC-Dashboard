@@ -9,13 +9,28 @@ import net.minecraft.server.MinecraftServer;
 
 public class DashboardWebSocketClient {
     private static WebSocket webSocket;
+    private static MinecraftServer serverInstance;
 
     public static void connect(MinecraftServer server) {
+        serverInstance = server;  // Save server instance
         HttpClient client = HttpClient.newHttpClient();
 
         webSocket = client.newWebSocketBuilder()
                 .buildAsync(URI.create("ws://localhost:3020/ws/minecraft"), new WebSocketListener())
                 .join();
+    }
+
+    public static void setServerInstance(MinecraftServer server) {
+        serverInstance = server;
+    }
+
+    public static void sendServerStatus() {
+        if (webSocket != null && serverInstance != null) {
+            String message = "{\"type\": \"server_status\", \"message\": \"Server started\"}";
+            webSocket.sendText(message, true);
+        } else {
+            System.err.println("[DashboardMod] Cannot send status – WebSocket or server not initialized.");
+        }
     }
 
     private static class WebSocketListener implements Listener {
@@ -38,4 +53,3 @@ public class DashboardWebSocketClient {
         }
     }
 }
-
