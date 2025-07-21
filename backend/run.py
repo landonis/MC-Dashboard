@@ -16,7 +16,7 @@ sys.path.insert(0, parent_dir)
 sys.path.insert(0, project_root)
 
 # Now import and run the app
-from app import app, init_db, logger
+from backend.app import app, init_db, logger
 
 if __name__ == '__main__':
     with app.app_context():
