@@ -10,6 +10,7 @@ import json
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
+from asgiref.wsgi import WsgiToAsgi
 from flask_jwt_extended import (
     JWTManager, create_access_token, get_jwt_identity, jwt_required,
     set_access_cookies, unset_jwt_cookies
@@ -208,19 +209,9 @@ def create_app():
 
 
 def get_mod_only_app():
-    app = Flask(__name__)
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///dashboard.db')
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-    db.init_app(app)
-
-    from modules.minecraft_mods import minecraft_mods_bp
-    app.register_blueprint(minecraft_mods_bp, url_prefix='/mod')
-
-    from backend.modules.websocket_mod_bridge import minecraft_ws_bp
-    app.register_blueprint(minecraft_ws_bp)
-
-    return app
+    from mod_api import create_mod_app
+    flask_app = create_mod_app()
+    return WsgiToAsgi(flask_app)
 
 
 # Dev mode entry
