@@ -15,6 +15,7 @@ public class DashboardWebSocketClient {
     private static boolean wasPreviouslyConnected = false;
 
     public static void connect() {
+        System.out.println("[DashboardMod] Attempting WebSocket connection...");
         OkHttpClient client = new OkHttpClient.Builder()
                 .readTimeout(0, TimeUnit.MILLISECONDS)
                 .build();
