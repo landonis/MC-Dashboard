@@ -254,7 +254,7 @@ def get_fabric_api_download_url(minecraft_version="1.20.1"):
         
         if not primary_file:
             primary_file = latest_version['files'][0]
-        
+        print(f"Minecraft fabric server jar info extracted: {primary_file}")
         return {
             'url': primary_file['url'],
             'filename': primary_file['filename'],
