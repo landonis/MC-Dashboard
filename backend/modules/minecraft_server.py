@@ -98,7 +98,7 @@ def get_server_status():
         
         # Check if server directory exists
         service_exists = os.path.exists('/etc/systemd/system/minecraft.service')
-        server_exists = os.path.exists('/opt/minecraft/fabric-installer.jar') and service_exists
+        server_exists = os.path.exists('/opt/minecraft/fabric-server-launch.jar') and service_exists
         
         # Get world info if server exists
         world_info = {}
@@ -239,7 +239,7 @@ def build_server():
     """Build new Minecraft server"""
     try:
         data = request.get_json()
-        minecraft_version = data.get('minecraft_version', '1.20.1')
+        minecraft_version = data.get('minecraft_version', '1.21.7')
         fabric_version = data.get('fabric_version', '0.16.10')
         installer_version = '1.0.3'
         memory_gb = data.get('memory_gb', 10)
@@ -266,7 +266,7 @@ def build_server():
         
         # Download Fabric installer
         build_log.append(f"Downloading Fabric installer for Minecraft {minecraft_version}...")
-        fabric_url = f"https://meta.fabricmc.net/v2/versions/loader/{minecraft_version}/{fabric_version}/{installer_version}/server/jar"
+        fabric_url = f"https://maven.fabricmc.net/net/fabricmc/fabric-installer/1.1.0/fabric-installer-1.1.0.jar"
         
         installer_path = f"{MINECRAFT_DIR}/fabric-installer.jar"
         download_result = run_command(f"/usr/bin/curl -L -o '{installer_path}' '{fabric_url}'")
@@ -276,13 +276,12 @@ def build_server():
                 'error': f'Failed to download Fabric installer: {download_result["stderr"]}',
                 'log': build_log
             }), 500
+        run_command("/usr/bin/java -jar /opt/minecraft/fabric-installer.jar -loader latest -downloadMinecraft
         
         # Accept EULA
         build_log.append("Accepting Minecraft EULA...")
         with open(f'{MINECRAFT_DIR}/eula.txt', 'w') as f:
             f.write('eula=true\n')
-
-        run_command(f"/usr/bin/java -jar fabric-installer.jar server -mcversion 1.20.1 -downloadMinecraft")
 
         
         # Create server.properties
@@ -311,7 +310,7 @@ Type=simple
 User={MINECRAFT_USER}
 Group={MINECRAFT_USER}
 WorkingDirectory={MINECRAFT_DIR}
-ExecStart=/usr/bin/java -Xmx{memory_gb}G -jar {MINECRAFT_DIR}/fabric-installer.jar nogui
+ExecStart=/usr/bin/java -Xmx{memory_gb}G -jar {MINECRAFT_DIR}/fabric-server-launch.jar nogui
 Restart=always
 RestartSec=10
 StandardOutput=journal
