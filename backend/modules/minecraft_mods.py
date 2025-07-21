@@ -208,7 +208,11 @@ def get_fabric_api_download_url(minecraft_version="1.20.1"):
         search_url = "https://api.modrinth.com/v2/search"
         params = {
             "query": "fabric-api",
-            "facets": f'[["project_type:mod"],["categories:fabric"],["versions:{minecraft_version}"]]',
+            "facets": json.dumps([
+                ["project_type:mod"],
+                ["categories:fabric"],
+                [f"versions:{minecraft_version}"]
+            ]),
             "limit": 1
         }
         
@@ -239,9 +243,8 @@ def get_fabric_api_download_url(minecraft_version="1.20.1"):
         
         # Get the latest version
         latest_version = versions[0]
-        if not latest_version.get('files'):
-            raise Exception("No files found for latest version")
-        
+        if not latest_version.get('files') or not latest_version['files']:
+            raise Exception("No downloadable files in latest version")
         # Find the primary file
         primary_file = None
         for file in latest_version['files']:
