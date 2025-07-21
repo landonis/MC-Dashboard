@@ -276,7 +276,7 @@ def build_server():
                 'error': f'Failed to download Fabric installer: {download_result["stderr"]}',
                 'log': build_log
             }), 500
-        run_command("/usr/bin/java -jar /opt/minecraft/fabric-installer.jar -loader latest -downloadMinecraft
+        run_command("/usr/bin/java -jar /opt/minecraft/fabric-installer.jar -loader latest -downloadMinecraft")
         
         # Accept EULA
         build_log.append("Accepting Minecraft EULA...")
