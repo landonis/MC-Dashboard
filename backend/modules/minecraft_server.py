@@ -240,9 +240,9 @@ def build_server():
     try:
         data = request.get_json()
         minecraft_version = data.get('minecraft_version', '1.20.1')
-        fabric_version = data.get('fabric_version', '0.14.21')
+        fabric_version = data.get('fabric_version', '0.16.10')
         installer_version = '1.0.3'
-        memory_gb = data.get('memory_gb', 2)
+        memory_gb = data.get('memory_gb', 10)
         
         build_log = []
         
