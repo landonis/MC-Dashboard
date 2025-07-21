@@ -16,7 +16,7 @@ dependencies {
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(11) // Use Java 11+ for built-in WebSocket
+        languageVersion = JavaLanguageVersion.of(21) // Use Java 11+ for built-in WebSocket
     }
 }
 
