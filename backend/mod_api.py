@@ -1,19 +1,33 @@
-# backend/mod_api.py
+from starlette.applications import Starlette
+from starlette.middleware import Middleware
+from starlette.middleware.cors import CORSMiddleware
+from backend.modules.websocket_mod_bridge import routes as mod_ws_routes
 
-from flask import Flask
-from backend.models import db
-from backend.modules.minecraft_mods import minecraft_mods_bp
-from backend.modules.websocket_mod_bridge import minecraft_ws_bp
-import os
+# Optional: import Flask app if you want to mount any legacy Flask Blueprints
+# from flask import Flask
+# from flask_sqlalchemy import SQLAlchemy
+# from backend.modules.minecraft_mods import minecraft_mods_bp
+# from werkzeug.middleware.dispatcher import DispatcherMiddleware
+# from starlette.middleware.wsgi import WSGIMiddleware
+
+# Example if you still want to keep a hybrid approach with Flask:
+# def get_flask_app():
+#     app = Flask(__name__)
+#     app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///dashboard.db')
+#     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+#     db.init_app(app)
+#     app.register_blueprint(minecraft_mods_bp, url_prefix='/mod')
+#     return app
 
 def create_mod_app():
-    app = Flask(__name__)
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///dashboard.db')
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    middleware = [
+        Middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+    ]
 
-    db.init_app(app)
+    app = Starlette(routes=mod_ws_routes, middleware=middleware)
 
-    app.register_blueprint(minecraft_mods_bp, url_prefix='/mod')
-    app.register_blueprint(minecraft_ws_bp)
+    # Optional: mount Flask if needed
+    # flask_app = get_flask_app()
+    # app.mount("/flask", WSGIMiddleware(flask_app))
 
     return app
