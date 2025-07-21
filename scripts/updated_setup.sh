@@ -279,32 +279,6 @@ RestartSec=10
 WantedBy=multi-user.target
 EOF
 
-# Create Minecraft systemd service template (will be activated when server is built)
-log "Creating Minecraft systemd service template..."
-cat > /etc/systemd/system/minecraft.service <<EOF
-[Unit]
-Description=Minecraft Server
-After=network.target
-
-[Service]
-Type=simple
-User=$MINECRAFT_USER
-Group=$MINECRAFT_USER
-WorkingDirectory=$MINECRAFT_DIR
-ExecStart=/usr/bin/java -Xmx2G -Xms2G -jar server.jar nogui
-Restart=on-failure
-RestartSec=10
-StandardOutput=journal
-StandardError=journal
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# Don't enable the service yet - it will be enabled when server is built
-systemctl daemon-reload
-log "Minecraft service template created (not enabled until server is built)"
-
 # Reload systemd and enable services
 systemctl daemon-reload
 systemctl daemon-reexec
