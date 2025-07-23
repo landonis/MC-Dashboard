@@ -62,7 +62,7 @@ const DashboardModFeatures: React.FC = () => {
       } else if (command === 'setDay') {
         await api.post('/api/ws-conn/set_day')
         setCommandOutput(`[Dashboard Mod] Set time to day.`)
-      } } else if (command === 'listPlayers') {
+      } else if (command === 'listPlayers') {
         const response = await api.get('/api/ws-conn/list_players')
         const players = Array.isArray(response.data.players)
           ? response.data.players.map((p: any) => (typeof p === 'string' ? p : JSON.stringify(p)))
