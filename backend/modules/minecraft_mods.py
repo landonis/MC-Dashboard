@@ -14,14 +14,29 @@ logger = logging.getLogger(__name__)
 
 from dotenv import load_dotenv
 load_dotenv()
-
+# File System Variables
 MINECRAFT_DIR = os.getenv("MINECRAFT_DIR", "/opt/minecraft")
-MINECRAFT_USER = os.getenv("MINECRAFT_USER", "minecraft")
-SERVICE_USER = os.getenv("SERVICE_USER", "dashboardapp")
+DASHBOARD_APP_DIR = os.getenv("DASHBOARD_APP_DIR", "/opt/dashboard-app")
+
 MODS_DIR = os.path.join(MINECRAFT_DIR, "mods")
 DISABLED_MODS_DIR = os.path.join(MINECRAFT_DIR, "mods", "disabled")
-SYSTEMD_SERVICE_PATH = "/etc/systemd/system/dashboard-backend.service"
-VENV_PATH = "/opt/dashboard-app/venv-mod"
+VENV_PATH = os.path.join(DASHBOARD_APP_DIR, "/venv-mod")
+
+# Service Accounts
+MINECRAFT_USER = os.getenv("MINECRAFT_USER", "minecraft")
+SERVICE_USER = os.getenv("SERVICE_USER", "dashboardapp")
+
+# Services
+SYSTEMD_SERVICE_PATH = "/etc/systemd/system"
+MOD_SERVICE = "dashboard_mod.service
+
+# Tooling
+GRADLE_EXEC = "/opt/gradle/gradle-8.8/bin/gradle"
+CHOWN_EXEC = "/usr/bin/chown"
+CHMOD_EXEC = "/usr/bin/chmod"
+SYSTEMCTL_EXEC = "/usr/bin/systemctl"
+SUDO_EXEC = "/bin/sudo"
+TEE_EXEC = "/usr/bin/tee"
 
 def run_command(cmd, cwd=None):
     """Run shell command safely and return result"""
@@ -62,14 +77,13 @@ def run_command(cmd, cwd=None):
 
 
 def create_backend_service():
-    venv_path = "/opt/dashboard-app/venv-mod"
-    python_bin = f"{venv_path}/bin/python"
-    pip_bin = f"{venv_path}/bin/pip"
-    gunicorn_bin = f"{venv_path}/bin/gunicorn"
+    python_bin = f"{VENV_PATH}/bin/python"
+    pip_bin = f"{VENV_PATH}/bin/pip"
+    gunicorn_bin = f"{VENV_PATH}/bin/gunicorn"
 
     # Step 1: Create virtualenv if not exists
-    if not os.path.isdir(venv_path):
-        result = run_command(f"/usr/bin/python3 -m venv {venv_path}")
+    if not os.path.isdir(VENV_PATH):
+        result = run_command(f"/usr/bin/python3 -m venv {VENV_PATH}")
         if not result["success"]:
             return jsonify({"error": "Failed to create virtualenv: " + result["stderr"]}), 500
 
@@ -88,11 +102,11 @@ After=network.target
 
 [Service]
 User=dashboardapp
-WorkingDirectory=/opt/dashboard-app/backend
-Environment=PATH=/opt/dashboard-app/backend/venv/bin
-Environment=PYTHONPATH=/opt/dashboard-app:/opt/dashboard-app/backend
+WorkingDirectory={os.path.join(DASHBOARD_APP_DIR, "backend"}
+Environment=PATH={os.path.join(DASHBOARD_APP_DIR, "backend", "venv", "bin"}
+Environment=PYTHONPATH={DASHBOARD_APP_DIR}:{os.path.join(DASHBOARD_APP_DIR, "backend"}
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/opt/dashboard-app/backend/venv/bin/gunicorn backend.app:get_mod_only_app --bind 0.0.0.0:3020 -k uvicorn.workers.UvicornWorker
+ExecStart={os.path.join(DASHBOARD_APP_DIR, "backend", "venv", "bin"}/gunicorn backend.app:get_mod_only_app --bind 0.0.0.0:3020 -k uvicorn.workers.UvicornWorker
 Restart=always
 RestartSec=5
 
@@ -100,17 +114,17 @@ RestartSec=5
 WantedBy=multi-user.target
 """
 
-    run_command(f"echo '{service_content}' | /bin/sudo /usr/bin/tee /etc/systemd/system/dashboard-mod.service > /dev/null")
-    run_command("/bin/sudo /usr/bin/systemctl daemon-reload")
-    run_command("/bin/sudo /usr/bin/systemctl enable dashboard-mod.service")
-    run_command("/bin/sudo /usr/bin/systemctl start dashboard-mod.service")
+    run_command(f"echo '{service_content}' | {SUDO_EXEC} {TEE_EXEC} {os.path.join(SYSTEMD_SERVICE_PATH, MOD_SERVICE)} > /dev/null")
+    run_command(f"{SUDO_EXEC} {SYSTEMCTL_EXEC} daemon-reload")
+    run_command(f"{SUDO_EXEC} {SYSTEMCTL_EXEC} enable {MOD_SERVICE}")
+    run_command(f"{SUDO_EXEC} {SYSTEMCTL_EXEC} start {MOD_SERVICE}")
 
 
 def destroy_backend_service():
-    result = run_command("/usr/bin/systemctl status dashboard-mod.service")
+    result = run_command(f"{SYSTEMCTL_EXEC} status {MOD_SERVICE}")
     if result["success"]:
-        run_command("/bin/sudo /usr/bin/systemctl stop dashboard-mod.service")
-        run_command("/bin/sudo /usr/bin/systemctl disable dashboard-mod.service")
+        run_command(f"{SUDO_EXEC} {SYSTEMCTL_EXEC} stop {MOD_SERVICE}")
+        run_command(f"{SUDO_EXEC} {SYSTEMCTL_EXEC} disable {MOD_SERVICE}")
         print("[Mod] Dashboard backend service stopped and disabled.")
 
 # Create blueprint
@@ -171,8 +185,8 @@ def ensure_mods_directory():
         os.makedirs(DISABLED_MODS_DIR, exist_ok=True)
         
         # Set proper permissions
-        run_command(f"/usr/bin/chown -R {MINECRAFT_USER}:{MINECRAFT_USER} {MODS_DIR}")
-        run_command(f"/usr/bin/chmod -R 755 {MODS_DIR}")
+        run_command(f"{CHOWN_EXEC} -R {MINECRAFT_USER}:{MINECRAFT_USER} {MODS_DIR}")
+        run_command(f"{CHMOD_EXEC} -R 755 {MODS_DIR}")
         
         return True
     except Exception as e:
@@ -270,8 +284,7 @@ def compile_dashboard_mod():
     """Compile dashboard mod from source using Gradle"""
     try:
         # Get the project root directory (parent of backend)
-        project_root = '/opt/dashboard-app'
-        dashboard_mod_dir = os.path.join(project_root, 'dashboard-mod')
+        dashboard_mod_dir = os.path.join(DASHBOARD_APP_DIR, 'dashboard-mod')
         
         if not os.path.exists(dashboard_mod_dir):
             raise Exception(f"Dashboard mod source directory not found: {dashboard_mod_dir}")
@@ -283,14 +296,14 @@ def compile_dashboard_mod():
         logger.info(f"Compiling dashboard mod from: {dashboard_mod_dir}")
         
         # Clean previous builds
-        clean_result = run_command("/opt/gradle/gradle-8.8/bin/gradle clean", cwd=dashboard_mod_dir)
+        clean_result = run_command(f"{GRADLE_EXEC} clean", cwd=dashboard_mod_dir)
         if not clean_result['success']:
             logger.warning(f"Gradle clean failed: {clean_result['stderr']}")
         
        
         # Build the mod
         
-        build_result = run_command("/opt/gradle/gradle-8.8/bin/gradle build", cwd=dashboard_mod_dir)
+        build_result = run_command(f"{GRADLE_EXEC} build", cwd=dashboard_mod_dir)
         if not build_result['success']:
             raise Exception(f"Gradle build failed: {build_result['stderr']}")
         
@@ -430,8 +443,8 @@ def upload_mod():
         file.save(file_path)
         
         # Set proper permissions
-        run_command(f"/usr/bin/chown {MINECRAFT_USER}:{MINECRAFT_USER} '{file_path}'")
-        run_command(f"/usr/bin/chmod 644 '{file_path}'")
+        run_command(f"{CHOWN_EXEC} {MINECRAFT_USER}:{MINECRAFT_USER} '{file_path}'")
+        run_command(f"{CHMOD_EXEC} 644 '{file_path}'")
         
         logger.info(f"Mod uploaded successfully: {filename}")
         return jsonify({
@@ -468,8 +481,8 @@ def install_fabric_api():
             f.write(response.content)
         
         # Set proper permissions
-        run_command(f"/usr/bin/chown {MINECRAFT_USER}:{MINECRAFT_USER} '{file_path}'")
-        run_command(f"/usr/bin/chmod 644 '{file_path}'")
+        run_command(f"{CHOWN_EXEC} {MINECRAFT_USER}:{MINECRAFT_USER} '{file_path}'")
+        run_command(f"{CHMOD_EXEC} 644 '{file_path}'")
         
         logger.info(f"Fabric API installed successfully: {fabric_info['filename']}")
         return jsonify({
@@ -526,8 +539,8 @@ def install_dashboard_mod():
         shutil.copy2(source_jar, target_path)
         
         # Set proper permissions
-        run_command(f"/usr/bin/chown {MINECRAFT_USER}:{MINECRAFT_USER} '{target_path}'")
-        run_command(f"/usr/bin/chmod 644 '{target_path}'")
+        run_command(f"{CHOWN_EXEC} {MINECRAFT_USER}:{MINECRAFT_USER} '{target_path}'")
+        run_command(f"{CHMOD_EXEC} 644 '{target_path}'")
         
         # Destroy existing venv if it exists
         if os.path.exists(VENV_PATH):
@@ -600,8 +613,8 @@ def enable_mod():
         shutil.move(disabled_path, enabled_path)
         
         # Set proper permissions
-        run_command(f"/usr/bin/chown {MINECRAFT_USER}:{MINECRAFT_USER} '{enabled_path}'")
-        run_command(f"/usr/bin/chmod 644 '{enabled_path}'")
+        run_command(f"{CHOWN_EXEC} {MINECRAFT_USER}:{MINECRAFT_USER} '{enabled_path}'")
+        run_command(f"{CHMOD_EXEC} 644 '{enabled_path}'")
         
         logger.info(f"Mod enabled successfully: {filename}")
         return jsonify({'message': f'Mod {filename} enabled successfully'})
@@ -622,12 +635,12 @@ def restart_server_with_recovery():
             recovery_log.append(f"Attempt {attempt + 1}: Starting server...")
             
             # Stop server first
-            stop_result = run_command("/bin/sudo /usr/bin/systemctl stop minecraft.service")
+            stop_result = run_command(f"{SUDO_EXEC} {SYSTEMCTL_EXEC} stop minecraft.service")
             if not stop_result['success']:
                 recovery_log.append(f"Warning: Failed to stop server cleanly")
             
             # Start server
-            start_result = run_command("/bin/sudo /usr/bin/systemctl start minecraft.service")
+            start_result = run_command(f"{SUDO_EXEC} {SYSTEMCTL_EXEC} start minecraft.service")
             if not start_result['success']:
                 recovery_log.append(f"Attempt {attempt + 1}: Server failed to start")
                 
@@ -672,7 +685,7 @@ def restart_server_with_recovery():
                 import time
                 time.sleep(5)
                 
-                status_result = run_command("/usr/bin/systemctl is-active minecraft.service")
+                status_result = run_command(f"{SYSTEMCTL_EXEC} is-active minecraft.service")
                 if status_result['success'] and status_result['stdout'].strip() == 'active':
                     recovery_log.append("Server is running stable")
                     return jsonify({
