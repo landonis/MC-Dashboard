@@ -28,7 +28,7 @@ SERVICE_USER = os.getenv("SERVICE_USER", "dashboardapp")
 
 # Services
 SYSTEMD_SERVICE_PATH = "/etc/systemd/system"
-MOD_SERVICE = "dashboard_mod.service
+MOD_SERVICE = "dashboard_mod.service"
 
 # Tooling
 GRADLE_EXEC = "/opt/gradle/gradle-8.8/bin/gradle"
