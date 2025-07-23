@@ -102,11 +102,11 @@ After=network.target
 
 [Service]
 User=dashboardapp
-WorkingDirectory={os.path.join(DASHBOARD_APP_DIR, "backend"}
-Environment=PATH={os.path.join(DASHBOARD_APP_DIR, "backend", "venv", "bin"}
-Environment=PYTHONPATH={DASHBOARD_APP_DIR}:{os.path.join(DASHBOARD_APP_DIR, "backend"}
+WorkingDirectory={os.path.join(DASHBOARD_APP_DIR, "backend")}
+Environment=PATH={os.path.join(DASHBOARD_APP_DIR, "backend", "venv", "bin")}
+Environment=PYTHONPATH={DASHBOARD_APP_DIR}:{os.path.join(DASHBOARD_APP_DIR, "backend")}
 Environment=PYTHONUNBUFFERED=1
-ExecStart={os.path.join(DASHBOARD_APP_DIR, "backend", "venv", "bin"}/gunicorn backend.app:get_mod_only_app --bind 0.0.0.0:3020 -k uvicorn.workers.UvicornWorker
+ExecStart={os.path.join(DASHBOARD_APP_DIR, "backend", "venv", "bin")}/gunicorn backend.app:get_mod_only_app --bind 0.0.0.0:3020 -k uvicorn.workers.UvicornWorker
 Restart=always
 RestartSec=5
 
