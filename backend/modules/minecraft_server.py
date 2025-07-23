@@ -17,6 +17,9 @@ load_dotenv()
 MINECRAFT_DIR = os.getenv("MINECRAFT_DIR", "/opt/minecraft")
 MINECRAFT_USER = os.getenv("MINECRAFT_USER", "minecraft")
 
+JAVA_EXEC = "/usr/bin/java"
+SYSTEMCTL_EXEC = "/usr/bin/systemctl"
+
 # Create blueprint
 minecraft_server_bp = Blueprint('minecraft_server', __name__, url_prefix='/server')
 
@@ -91,20 +94,20 @@ def get_server_status():
     """Get Minecraft server status"""
     try:
         # Check systemctl status
-        status_result = run_command("/usr/bin/systemctl is-active minecraft.service")
+        status_result = run_command(f"{SYSTEMCTL_EXEC} is-active minecraft.service")
         is_running = status_result['success'] and status_result['stdout'].strip() == 'active'
         
         # Get detailed status
-        detail_result = run_command("/usr/bin/systemctl status minecraft.service --no-pager -l")
+        detail_result = run_command(f"{SYSTEMCTL_EXEC} status minecraft.service --no-pager -l")
         
         # Check if server directory exists
         service_exists = os.path.exists('/etc/systemd/system/minecraft.service')
-        server_exists = os.path.exists('/opt/minecraft/fabric-server-launch.jar') and service_exists
+        server_exists = os.path.exists(f"{MINECRAFT_DIR}/fabric-server-launch.jar") and service_exists
         
         # Get world info if server exists
         world_info = {}
         if server_exists:
-            world_path = '/opt/minecraft/world'
+            world_path = os.path.join(MINECRAFT_DIR,"world")
             if os.path.exists(world_path):
                 world_info = {
                     'exists': True,
@@ -146,8 +149,8 @@ def get_server_status():
 def enable_service():
     """Enable the Minecraft systemd service"""
     try:
-        run_command(f"/bin/sudo /usr/bin/systemctl daemon-reload")
-        result = run_command(f"/bin/sudo /usr/bin/systemctl enable minecraft.service")
+        run_command(f"/bin/sudo {SYSTEMCTL_EXEC} daemon-reload")
+        result = run_command(f"/bin/sudo {SYSTEMCTL_EXEC} enable minecraft.service")
 
         if result['success']:
             return jsonify({'message': 'Minecraft service enabled successfully'})
@@ -164,8 +167,8 @@ def enable_service():
 def disable_service():
     """Disable the Minecraft systemd service"""
     try:
-        run_command(f"/bin/sudo /usr/bin/systemctl daemon-reload")
-        result = run_command(f"/bin/sudo /usr/bin/systemctl disable minecraft.service")
+        run_command(f"/bin/sudo {SYSTEMCTL_EXEC} daemon-reload")
+        result = run_command(f"/bin/sudo {SYSTEMCTL_EXEC} disable minecraft.service")
 
         if result['success']:
             return jsonify({'message': 'Minecraft service disabled successfully'})
@@ -182,10 +185,10 @@ def disable_service():
 def start_server():
     """Start Minecraft server"""
     try:
-        if not os.path.exists('/opt/minecraft'):
+        if not os.path.exists(MINECRAFT_DIR):
             return jsonify({'error': 'Server not built yet'}), 400
         
-        result = run_command(f"/bin/sudo /usr/bin/systemctl start minecraft.service")
+        result = run_command(f"/bin/sudo {SYSTEMCTL_EXEC} start minecraft.service")
         
         if result['success']:
             return jsonify({'message': 'Server started successfully'})
@@ -203,7 +206,7 @@ def start_server():
 def stop_server():
     """Stop Minecraft server"""
     try:
-        result = run_command(f"/bin/sudo /usr/bin/systemctl stop minecraft.service")
+        result = run_command(f"/bin/sudo {SYSTEMCTL_EXEC} stop minecraft.service")
         
         if result['success']:
             return jsonify({'message': 'Server stopped successfully'})
@@ -231,7 +234,7 @@ Type=simple
 User={MINECRAFT_USER}
 Group={MINECRAFT_USER}
 WorkingDirectory={MINECRAFT_DIR}
-ExecStart=/usr/bin/java -Xmx20G -jar {MINECRAFT_DIR}/fabric-server-launch.jar nogui
+ExecStart={JAVA_EXEC} -Xmx20G -jar {MINECRAFT_DIR}/fabric-server-launch.jar nogui
 Restart=always
 RestartSec=10
 StandardOutput=journal
@@ -242,7 +245,7 @@ WantedBy=multi-user.target"""
         run_command(f"echo '{service_content}' | /bin/sudo /usr/bin/tee /etc/systemd/system/minecraft.service > /dev/null")
 
         
-        result = run_command(f"/bin/sudo /usr/bin/systemctl restart minecraft.service")
+        result = run_command(f"/bin/sudo {SYSTEMCTL_EXEC} restart minecraft.service")
         
         if result['success']:
             return jsonify({'message': 'Server restarted successfully'})
@@ -270,7 +273,7 @@ def build_server():
         
         # Stop existing server if running
         build_log.append("Stopping existing server...")
-        run_command(f"/bin/sudo /usr/bin/systemctl stop minecraft.service")
+        run_command(f"/bin/sudo {SYSTEMCTL_EXEC} stop minecraft.service")
         
         # Ensure minecraft directory exists
         build_log.append("Setting up minecraft directory...")
@@ -299,8 +302,7 @@ def build_server():
                 'log': build_log
             }), 500
 
-        # TODO Convert this to use sudo
-        run_command("/usr/bin/java -jar /opt/minecraft/fabric-installer.jar server -loader latest -downloadMinecraft")
+        run_command(f"{JAVA_EXEC} -jar {MINECRAFT_DIR}/fabric-installer.jar server -loader latest -downloadMinecraft")
         
         # Accept EULA
         build_log.append("Accepting Minecraft EULA...")
@@ -353,8 +355,8 @@ WantedBy=multi-user.target
         
         # Reload systemd and enable service
         build_log.append("Enabling systemd service...")
-        run_command("/bin/sudo /usr/bin/systemctl daemon-reload")
-        run_command("/bin/sudo /usr/bin/systemctl enable minecraft.service")
+        run_command("/bin/sudo {SYSTEMCTL_EXEC} daemon-reload")
+        run_command("/bin/sudo {SYSTEMCTL_EXEC} enable minecraft.service")
 
 
         
@@ -462,7 +464,7 @@ def get_directory_size(path):
 def check_service_enabled():
     """Check if minecraft service is enabled"""
     try:
-        result = run_command("/usr/bin/systemctl is-enabled minecraft.service")
+        result = run_command("{SYSTEMCTL_EXEC} is-enabled minecraft.service")
         return result['success'] and result['stdout'].strip() == 'enabled'
     except:
         return False
