@@ -20,6 +20,27 @@ public class DashboardMod implements ModInitializer {
         // Initialize region protection
         RegionManager.loadClaims();
         RegionCommandHandler.registerCommands();
+
+        PlayerBlockBreakEvents.BEFORE.register((world, player, pos, state, blockEntity) -> {
+            ChunkPos chunkPos = new ChunkPos(pos);
+            ClaimedChunk claim = RegionManager.getClaim(chunkPos);
+            if (claim != null && !claim.getOwner().equals(player.getUuid()) && !claim.isTrusted(player.getUuid())) {
+                player.sendMessage(Text.literal("You can't break blocks in this claimed area.").formatted(Formatting.RED), false);
+                return false;
+            }
+            return true;
+        });
+
+        UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
+            if (world.isClient) return ActionResult.PASS;
+            ChunkPos chunkPos = new ChunkPos(hitResult.getBlockPos());
+            ClaimedChunk claim = RegionManager.getClaim(chunkPos);
+            if (claim != null && !claim.getOwner().equals(player.getUuid()) && !claim.isTrusted(player.getUuid())) {
+                player.sendMessage(Text.literal("You can't interact with blocks here.").formatted(Formatting.RED), false);
+                return ActionResult.FAIL;
+            }
+            return ActionResult.PASS;
+        });
         
         // Register block interaction events for region protection
         UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
