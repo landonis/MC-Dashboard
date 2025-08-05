@@ -13,6 +13,9 @@ public class Group {
         this.members.put(owner, "owner");
     }
 
+    public boolean isAdmin(UUID uuid) {
+        return "admin".equals(roles.get(uuid)) || isOwner(uuid);
+    }
     public boolean hasPermission(UUID uuid, String permission) {
         String role = members.get(uuid);
         if (role == null) return false;
