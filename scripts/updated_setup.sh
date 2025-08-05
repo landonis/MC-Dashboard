@@ -246,7 +246,9 @@ dashboardapp ALL=(ALL) NOPASSWD: \
     /usr/bin/systemctl stop dashboard-mod.service, \
     /bin/systemctl daemon-reload, \
     /bin/systemctl daemon-reexec, \
-    /bin/mv /tmp/minecraft.service /etc/systemd/system/minecraft.service
+    /bin/mv /tmp/minecraft.service /etc/systemd/system/minecraft.service, \
+    /opt/gradle/gradle-8.8/bin/gradle clean, \
+    /opt/gradle/gradle-8.8/bin/gradle build
 
 dashboardapp ALL=(minecraft) NOPASSWD: \
     /usr/bin/zip, \
