@@ -13,6 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class RegionManager {
     private static final Map<ChunkPos, ClaimedChunk> claimedChunks = new ConcurrentHashMap<>();
     private static final File CLAIM_FILE = new File("config/dashboardmod/claims.json");
+    private static final Map<ChunkPos, ClaimedChunk> claims = new HashMap<>();
 
     private static final Map<UUID, String> nameCache = new HashMap<>();
     private static MinecraftServer serverReference;
