@@ -1,138 +1,209 @@
 package net.landonis.dashboardmod;
 
-import com.mojang.brigadier.CommandDispatcher;
-import com.mojang.brigadier.context.CommandContext;
-import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
-import net.minecraft.server.command.CommandManager;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.server.network.ServerPlayerEntity;
+import java.util.concurrent.CompletableFuture;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.WebSocket;
+import java.net.http.WebSocket.Listener;
+import java.util.concurrent.CompletionStage;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import net.minecraft.text.Text;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.Formatting;
 
-import java.util.Set;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonParser;
+import com.google.gson.JsonSyntaxException;
 
-public class RegionCommandHandler {
-    public static void registerCommands() {
-        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
-            registerClaimCommands(dispatcher);
-        });
+public class DashboardWebSocketClient {
+    private static WebSocket webSocket;
+    public static MinecraftServer serverInstance;
+    private static boolean isConnected = false;
+
+    public static void connect(MinecraftServer server) {
+        serverInstance = server;
+        HttpClient client = HttpClient.newHttpClient();
+
+        try {
+            webSocket = client.newWebSocketBuilder()
+                    .buildAsync(URI.create("ws://localhost:3020/ws/minecraft"), new WebSocketListener())
+                    .join();
+            isConnected = true;
+            System.out.println("[DashboardMod] Successfully connected to WebSocket");
+        } catch (Exception e) {
+            System.err.println("[DashboardMod] Failed to connect to WebSocket (this is normal if dashboard backend is not running): " + e.getMessage());
+            isConnected = false;
+        }
     }
 
-    private static void registerClaimCommands(CommandDispatcher<ServerCommandSource> dispatcher) {
-        // /claim command
-        dispatcher.register(CommandManager.literal("claim")
-            .requires(source -> source.isExecutedByPlayer())
-            .executes(ctx -> {
-                return executeClaim(ctx);
-            }));
-
-        // /unclaim command
-        dispatcher.register(CommandManager.literal("unclaim")
-            .requires(source -> source.isExecutedByPlayer())
-            .executes(ctx -> {
-                return executeUnclaim(ctx);
-            }));
-
-        // /claims command - list player's claims
-        dispatcher.register(CommandManager.literal("claims")
-            .requires(source -> source.isExecutedByPlayer())
-            .executes(ctx -> {
-                return executeListClaims(ctx);
-            }));
-
-        // /claiminfo command - info about current chunk
-        dispatcher.register(CommandManager.literal("claiminfo")
-            .requires(source -> source.isExecutedByPlayer())
-            .executes(ctx -> {
-                return executeClaimInfo(ctx);
-            }));
-
-        // /claimhelp command - show help
-        dispatcher.register(CommandManager.literal("claimhelp")
-            .executes(ctx -> {
-                return executeHelp(ctx);
-            }));
+    public static void setServerInstance(MinecraftServer server) {
+        serverInstance = server;
     }
 
-    private static int executeClaim(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
-        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
-        ChunkPos pos = player.getChunkPos();
-        String playerName = player.getName().getString();
-        
-        if (RegionManager.isClaimed(pos)) {
-            String owner = RegionManager.getChunkOwner(pos);
-            if (owner.equals(playerName)) {
-                player.sendMessage(Text.literal("You already own this chunk.").formatted(Formatting.YELLOW), false);
-            } else {
-                player.sendMessage(Text.literal("This chunk is already claimed by " + owner + ".").formatted(Formatting.RED), false);
+    public static void sendServerStatus() {
+        if (isConnected && webSocket != null && serverInstance != null) {
+            JsonObject message = new JsonObject();
+            message.addProperty("type", "server_status");
+            message.addProperty("message", "Server started with Region Protection");
+            webSocket.sendText(message.toString(), true);
+        }
+    }
+
+    public static void sendMessage(String content) {
+        if (isConnected && webSocket != null && serverInstance != null) {
+            serverInstance.getPlayerManager().broadcast(Text.literal("[Dashboard] " + content).formatted(Formatting.AQUA), false);
+    
+            JsonObject message = new JsonObject();
+            message.addProperty("type", "message_sent");
+            message.addProperty("content", content);
+            webSocket.sendText(message.toString(), true);
+        }
+    }
+
+    public static void listPlayers() {
+        if (isConnected && webSocket != null && serverInstance != null) {
+            List<String> playerNames = serverInstance.getPlayerManager()
+                .getPlayerList()
+                .stream()
+                .map(player -> player.getName().getString())
+                .collect(Collectors.toList());
+    
+            JsonObject response = new JsonObject();
+            response.addProperty("type", "players");
+    
+            JsonArray playersArray = new JsonArray();
+            for (String name : playerNames) {
+                playersArray.add(name);
             }
-        } else if (RegionManager.claimChunk(playerName, pos)) {
-            player.sendMessage(Text.literal("Chunk claimed successfully! (" + pos.x + ", " + pos.z + ")").formatted(Formatting.GREEN), false);
-            
-            // Notify dashboard if connected
-            DashboardWebSocketClient.sendClaimUpdate(playerName, pos, "claimed");
-        } else {
-            player.sendMessage(Text.literal("Failed to claim chunk.").formatted(Formatting.RED), false);
+            response.add("players", playersArray);
+            webSocket.sendText(response.toString(), true);
         }
-        return 1;
     }
 
-    private static int executeUnclaim(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
-        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
-        ChunkPos pos = player.getChunkPos();
-        String playerName = player.getName().getString();
-        
-        if (RegionManager.unclaimChunk(playerName, pos)) {
-            player.sendMessage(Text.literal("Chunk unclaimed successfully. (" + pos.x + ", " + pos.z + ")").formatted(Formatting.YELLOW), false);
-            
-            // Notify dashboard if connected
-            DashboardWebSocketClient.sendClaimUpdate(playerName, pos, "unclaimed");
-        } else {
-            player.sendMessage(Text.literal("You don't own this chunk or it's not claimed.").formatted(Formatting.RED), false);
+    public static void sendClaimUpdate(String player, ChunkPos pos, String action) {
+        if (isConnected && webSocket != null) {
+            JsonObject message = new JsonObject();
+            message.addProperty("type", "claim_update");
+            message.addProperty("player", player);
+            message.addProperty("chunkX", pos.x);
+            message.addProperty("chunkZ", pos.z);
+            message.addProperty("action", action);
+            webSocket.sendText(message.toString(), true);
         }
-        return 1;
     }
 
-    private static int executeListClaims(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
-        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
-        String playerName = player.getName().getString();
-        Set<ChunkPos> claims = RegionManager.getPlayerClaims(playerName);
-        
-        if (claims.isEmpty()) {
-            player.sendMessage(Text.literal("You don't have any claimed chunks.").formatted(Formatting.YELLOW), false);
-        } else {
-            player.sendMessage(Text.literal("Your claimed chunks (" + claims.size() + "):").formatted(Formatting.GREEN), false);
-            for (ChunkPos pos : claims) {
-                player.sendMessage(Text.literal("- Chunk " + pos.x + ", " + pos.z).formatted(Formatting.GRAY), false);
+    public static void sendClaimsData() {
+        if (isConnected && webSocket != null) {
+            JsonObject response = new JsonObject();
+            response.addProperty("type", "claims_data");
+            
+            JsonObject claimsObj = new JsonObject();
+            Map<String, Set<ChunkPos>> allClaims = RegionManager.getAllClaims();
+            
+            for (Map.Entry<String, Set<ChunkPos>> entry : allClaims.entrySet()) {
+                JsonArray chunks = new JsonArray();
+                for (ChunkPos pos : entry.getValue()) {
+                    JsonObject chunk = new JsonObject();
+                    chunk.addProperty("x", pos.x);
+                    chunk.addProperty("z", pos.z);
+                    chunks.add(chunk);
+                }
+                claimsObj.add(entry.getKey(), chunks);
             }
+            
+            response.add("claims", claimsObj);
+            webSocket.sendText(response.toString(), true);
         }
-        return 1;
     }
+    
+    public static boolean isConnected() {
+        return isConnected;
+    }
+    
+    private static class WebSocketListener implements Listener {
+        @Override
+        public void onOpen(WebSocket webSocket) {
+            System.out.println("[DashboardMod] WebSocket connected with Region Protection features.");
+            webSocket.request(1);
+        }
 
-    private static int executeClaimInfo(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
-        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
-        ChunkPos pos = player.getChunkPos();
+        @Override
+        public CompletionStage<?> onText(WebSocket webSocket, CharSequence data, boolean last) {
+            System.out.println("[DashboardMod] Received: " + data);
+            webSocket.request(1);
         
-        if (RegionManager.isClaimed(pos)) {
-            String owner = RegionManager.getChunkOwner(pos);
-            player.sendMessage(Text.literal("This chunk is claimed by: ").formatted(Formatting.YELLOW)
-                .append(Text.literal(owner).formatted(Formatting.GREEN)), false);
-        } else {
-            player.sendMessage(Text.literal("This chunk is not claimed by anyone.").formatted(Formatting.GRAY), false);
+            try {
+                JsonObject message;
+                try {
+                    message = JsonParser.parseString(data.toString()).getAsJsonObject();
+                } catch (JsonSyntaxException e) {
+                    System.err.println("[DashboardMod] Invalid JSON received: " + data);
+                    return CompletableFuture.completedFuture(null);
+                }
+                
+                String type = message.get("type").getAsString();
+        
+                switch (type) {
+                    case "sendMessage":
+                        if (message.has("content")) {
+                            String content = message.get("content").getAsString();
+                            sendMessage(content);
+                        }
+                        break;
+                    case "setDay":
+                        if (serverInstance != null) {
+                            serverInstance.getOverworld().setTimeOfDay(1000);
+                        }
+                        break;
+                    case "setNight":
+                        if (serverInstance != null) {
+                            serverInstance.getOverworld().setTimeOfDay(13000);
+                        }
+                        break;
+                    case "listPlayers":
+                        listPlayers();
+                        break;
+                    case "getClaims":
+                        sendClaimsData();
+                        break;
+                    case "adminUnclaim":
+                        if (message.has("chunkX") && message.has("chunkZ")) {
+                            int x = message.get("chunkX").getAsInt();
+                            int z = message.get("chunkZ").getAsInt();
+                            ChunkPos pos = new ChunkPos(x, z);
+                            String owner = RegionManager.getChunkOwner(pos);
+                            if (owner != null && RegionManager.unclaimChunk(owner, pos)) {
+                                sendClaimUpdate("ADMIN", pos, "admin_unclaimed");
+                            }
+                        }
+                        break;
+                    default:
+                        System.out.println("[DashboardMod] Unknown message type: " + type);
+                        break;
+                }
+            } catch (Exception e) {
+                System.err.println("[DashboardMod] Error parsing message: " + e.getMessage());
+            }
+        
+            return CompletableFuture.completedFuture(null);
         }
-        return 1;
-    }
+        
+        @Override
+        public void onError(WebSocket webSocket, Throwable error) {
+            System.err.println("[DashboardMod] WebSocket error: " + error.getMessage());
+            isConnected = false;
+        }
 
-    private static int executeHelp(CommandContext<ServerCommandSource> ctx) {
-        ServerCommandSource source = ctx.getSource();
-        source.sendFeedback(() -> Text.literal("=== Region Protection Commands ===").formatted(Formatting.GOLD), false);
-        source.sendFeedback(() -> Text.literal("/claim - Claim the current chunk").formatted(Formatting.GREEN), false);
-        source.sendFeedback(() -> Text.literal("/unclaim - Unclaim the current chunk").formatted(Formatting.GREEN), false);
-        source.sendFeedback(() -> Text.literal("/claims - List your claimed chunks").formatted(Formatting.GREEN), false);
-        source.sendFeedback(() -> Text.literal("/claiminfo - Get info about current chunk").formatted(Formatting.GREEN), false);
-        source.sendFeedback(() -> Text.literal("/claimhelp - Show this help").formatted(Formatting.GREEN), false);
-        return 1;
+        @Override
+        public CompletionStage<?> onClose(WebSocket webSocket, int statusCode, String reason) {
+            System.out.println("[DashboardMod] WebSocket closed: " + reason);
+            isConnected = false;
+            return CompletableFuture.completedFuture(null);
+        }
     }
 }
