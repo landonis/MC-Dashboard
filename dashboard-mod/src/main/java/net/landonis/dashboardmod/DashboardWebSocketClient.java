@@ -19,6 +19,8 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
+import java.util.UUID;
+import com.mojang.authlib.GameProfile;
 
 public class DashboardWebSocketClient {
     private static WebSocket webSocket;
@@ -177,7 +179,10 @@ public class DashboardWebSocketClient {
                             int z = message.get("chunkZ").getAsInt();
                             ChunkPos pos = new ChunkPos(x, z);
                             String owner = RegionManager.getChunkOwner(pos);
-                            UUID uuid = server.getUserCache().getByName(owner).map(GameProfile::getId).orElse(null);
+                            UUID uuid = server.getUserCache()
+                                .getByName(owner)
+                                .map(GameProfile::getId)
+                                .orElse(null);
                             if (uuid != null && RegionManager.unclaimChunk(uuid, pos)) {
                                 sendClaimUpdate("ADMIN", pos, "admin_unclaimed");
                             }
