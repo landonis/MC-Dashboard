@@ -150,6 +150,15 @@ public class RegionManager {
         return result;
     }
 
+    public static Map<String, Set<ChunkPos>> getAllClaims() {
+    Map<String, Set<ChunkPos>> result = new HashMap<>();
+    for (Map.Entry<ChunkPos, ClaimedChunk> entry : claimedChunks.entrySet()) {
+        String owner = entry.getValue().getOwner().toString();
+        result.computeIfAbsent(owner, k -> new HashSet<>()).add(entry.getKey());
+    }
+    return result;
+}
+    
     public static boolean claimChunk(String playerName, ChunkPos pos) {
         return claimChunk(UUID.fromString(playerName), pos);
     }
