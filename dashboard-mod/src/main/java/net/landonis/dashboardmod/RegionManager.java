@@ -16,13 +16,18 @@ public class RegionManager {
 
     private static final Map<UUID, String> nameCache = new HashMap<>();
     private static MinecraftServer serverReference; // Cached server instance
-
+    
     public static void init() {
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             serverReference = server;
             loadClaims();
         });
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> saveClaims());
+    }
+
+    
+    public static void setServer(MinecraftServer server) {
+        serverReference = server;
     }
 
     public static boolean claimChunk(UUID owner, ChunkPos pos) {
