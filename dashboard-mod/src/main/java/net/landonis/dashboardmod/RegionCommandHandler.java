@@ -15,6 +15,9 @@ import net.minecraft.util.math.ChunkPos;
 import java.util.*;
 
 public class RegionCommandHandler {
+    private static final Set<UUID> claimInfoTrackingPlayers = new HashSet<>();
+    private static final Map<UUID, ChunkPos> lastKnownChunks = new HashMap<>();
+    
     public static void registerCommands() {
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
             registerClaimCommands(dispatcher);
