@@ -20,7 +20,7 @@ DASHBOARD_APP_DIR = os.getenv("DASHBOARD_APP_DIR", "/opt/dashboard-app")
 
 MODS_DIR = os.path.join(MINECRAFT_DIR, "mods")
 DISABLED_MODS_DIR = os.path.join(MINECRAFT_DIR, "mods", "disabled")
-VENV_PATH = os.path.join(DASHBOARD_APP_DIR, "/venv-mod")
+VENV_PATH = os.path.join(DASHBOARD_APP_DIR, "venv-mod")
 
 # Service Accounts
 MINECRAFT_USER = os.getenv("MINECRAFT_USER", "minecraft")
