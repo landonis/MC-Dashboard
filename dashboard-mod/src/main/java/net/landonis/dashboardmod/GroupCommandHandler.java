@@ -66,7 +66,14 @@ public class GroupCommandHandler {
     private static int invite(CommandContext<ServerCommandSource> ctx) {
         ServerPlayerEntity sender = getPlayer(ctx);
         String groupName = StringArgumentType.getString(ctx, "group");
-        Collection<GameProfile> targets = GameProfileArgumentType.getProfileArgument(ctx, "player");
+        Collection<GameProfile> targets;
+        try {
+            targets = GameProfileArgumentType.getProfileArgument(ctx, "player");
+        } catch (CommandSyntaxException e) {
+            source.sendError(Text.literal("Invalid player specified."));
+            return 0;
+        }
+
 
         Group group = GroupManager.get(groupName);
         
@@ -136,7 +143,14 @@ public class GroupCommandHandler {
     private static int promote(CommandContext<ServerCommandSource> ctx) {
         ServerPlayerEntity sender = getPlayer(ctx);
         String groupName = StringArgumentType.getString(ctx, "group");
-        Collection<GameProfile> targets = GameProfileArgumentType.getProfileArgument(ctx, "player");
+        Collection<GameProfile> targets;
+        try {
+            targets = GameProfileArgumentType.getProfileArgument(ctx, "player");
+        } catch (CommandSyntaxException e) {
+            source.sendError(Text.literal("Invalid player specified."));
+            return 0;
+        }
+
 
         Group group = GroupManager.get(groupName);
         if (group == null) {
@@ -166,7 +180,13 @@ public class GroupCommandHandler {
     private static int demote(CommandContext<ServerCommandSource> ctx) {
         ServerPlayerEntity sender = getPlayer(ctx);
         String groupName = StringArgumentType.getString(ctx, "group");
-        Collection<GameProfile> targets = GameProfileArgumentType.getProfileArgument(ctx, "player");
+        Collection<GameProfile> targets;
+        try {
+            targets = GameProfileArgumentType.getProfileArgument(ctx, "player");
+        } catch (CommandSyntaxException e) {
+            source.sendError(Text.literal("Invalid player specified."));
+            return 0;
+        }
 
         Group group = GroupManager.get(groupName);
         if (group == null) {
