@@ -1,5 +1,6 @@
 package net.landonis.dashboardmod;
 
+import java.util.concurrent.CompletableFuture;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
@@ -142,7 +143,7 @@ public class DashboardWebSocketClient {
                     message = JsonParser.parseString(data.toString()).getAsJsonObject();
                 } catch (JsonSyntaxException e) {
                     System.err.println("[DashboardMod] Invalid JSON received: " + data);
-                    return null;
+                    return CompletableFuture.completedFuture(null);
                 }
                 
                 String type = message.get("type").getAsString();
@@ -189,7 +190,7 @@ public class DashboardWebSocketClient {
                 System.err.println("[DashboardMod] Error parsing message: " + e.getMessage());
             }
         
-            return null;
+            return CompletableFuture.completedFuture(null);
         }
         
         @Override
@@ -202,7 +203,7 @@ public class DashboardWebSocketClient {
         public CompletionStage<?> onClose(WebSocket webSocket, int statusCode, String reason) {
             System.out.println("[DashboardMod] WebSocket closed: " + reason);
             isConnected = false;
-            return null;
+            return CompletableFuture.completedFuture(null);
         }
     }
 }
