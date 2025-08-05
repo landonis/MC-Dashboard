@@ -176,20 +176,20 @@ public class DashboardWebSocketClient {
                     case "getClaims":
                         sendClaimsData();
                         break;
-                    case "adminUnclaim":
-                        if (message.has("chunkX") && message.has("chunkZ")) {
-                            int x = message.get("chunkX").getAsInt();
-                            int z = message.get("chunkZ").getAsInt();
-                            ChunkPos pos = new ChunkPos(x, z);
-                            String owner = RegionManager.getChunkOwner(pos);
-                            GameProfile profile = DashboardWebSocketClient.serverInstance.getUserCache().findByName(owner);
-                            UUID uuid = (profile != null) ? profile.getId() : null;
+               //     case "adminUnclaim":
+                 //       if (message.has("chunkX") && message.has("chunkZ")) {
+                   //         int x = message.get("chunkX").getAsInt();
+                     //       int z = message.get("chunkZ").getAsInt();
+                       //     ChunkPos pos = new ChunkPos(x, z);
+                         //   String owner = RegionManager.getChunkOwner(pos);
+                           // GameProfile profile = DashboardWebSocketClient.serverInstance.getUserCache().findByName(owner);
+                           // UUID uuid = (profile != null) ? profile.getId() : null;
 
-                            if (uuid != null && RegionManager.unclaimChunk(uuid, pos)) {
-                                sendClaimUpdate("ADMIN", pos, "admin_unclaimed");
-                            }
-                        }
-                        break;
+                            //if (uuid != null && RegionManager.unclaimChunk(uuid, pos)) {
+                              //  sendClaimUpdate("ADMIN", pos, "admin_unclaimed");
+                            //}
+                       // }
+                       // break;
                     default:
                         System.out.println("[DashboardMod] Unknown message type: " + type);
                         break;
