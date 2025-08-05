@@ -24,6 +24,15 @@ public class RegionCommandHandler {
         });
     }
 
+    public static boolean isTrackingClaimInfo(UUID uuid) {
+        return claimInfoTrackingPlayers.contains(uuid);
+    }
+    
+    public static void updateLastKnownChunk(UUID uuid, ChunkPos newPos) {
+        lastKnownChunks.put(uuid, newPos);
+    }
+
+
     private static void registerClaimCommands(CommandDispatcher<ServerCommandSource> dispatcher) {
         dispatcher.register(CommandManager.literal("claim")
             .requires(source -> source.isExecutedByPlayer())
@@ -39,7 +48,12 @@ public class RegionCommandHandler {
 
         dispatcher.register(CommandManager.literal("claiminfo")
             .requires(source -> source.isExecutedByPlayer())
-            .executes(RegionCommandHandler::executeClaimInfo));
+            .executes(RegionCommandHandler::executeClaimInfo)
+            .then(CommandManager.literal("start")
+                .executes(RegionCommandHandler::executeClaimInfoStart))
+            .then(CommandManager.literal("stop")
+                .executes(RegionCommandHandler::executeClaimInfoStop)));
+
 
         dispatcher.register(CommandManager.literal("claimhelp")
             .executes(RegionCommandHandler::executeHelp));
@@ -162,6 +176,34 @@ public class RegionCommandHandler {
         }
         return 1;
     }
+
+    private static int executeClaimInfoStart(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        UUID uuid = player.getUuid();
+    
+        if (claimInfoTrackingPlayers.contains(uuid)) {
+            player.sendMessage(Text.literal("Claim info tracking is already active.").formatted(Formatting.YELLOW), false);
+        } else {
+            claimInfoTrackingPlayers.add(uuid);
+            lastKnownChunks.put(uuid, player.getChunkPos());
+            player.sendMessage(Text.literal("Claim info tracking started. Walk around to see who owns each chunk.").formatted(Formatting.GREEN), false);
+        }
+        return 1;
+    }
+    
+    private static int executeClaimInfoStop(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        UUID uuid = player.getUuid();
+    
+        if (claimInfoTrackingPlayers.remove(uuid)) {
+            lastKnownChunks.remove(uuid);
+            player.sendMessage(Text.literal("Claim info tracking stopped.").formatted(Formatting.YELLOW), false);
+        } else {
+            player.sendMessage(Text.literal("Claim info tracking wasn't active.").formatted(Formatting.RED), false);
+        }
+        return 1;
+    }
+
 
     private static int executeTrust(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
         ServerPlayerEntity sender = ctx.getSource().getPlayerOrThrow();
