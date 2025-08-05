@@ -7,57 +7,67 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.Formatting;
 
+import java.util.UUID;
+
 public class RegionProtection {
-    
-    public static boolean canPlayerModifyBlock(PlayerEntity player, BlockPos blockPos) {
-        if (!(player instanceof ServerPlayerEntity serverPlayer)) {
-            return true; // Allow client-side operations
+
+    public static boolean canPlayerBuild(UUID playerUuid, RegionManager.ClaimedChunk claim) {
+        if (claim == null) return true;
+
+        if (claim.isPlayerClaim()) {
+            return claim.getOwner().equals(playerUuid) || claim.isTrusted(playerUuid);
+        } else if (claim.isGroupClaim()) {
+            String groupName = claim.getGroupName();
+            return GroupManager.getGroup(groupName).hasPermission(playerUuid, "build");
         }
-        
-        // Allow creative mode players and ops (assuming they're admins)
-        if (serverPlayer.isCreative() || serverPlayer.hasPermissionLevel(2)) {
-            return true;
-        }
-        
-        ChunkPos chunkPos = new ChunkPos(blockPos);
-        String playerName = serverPlayer.getName().getString();
-        
-        // If chunk is not claimed, allow modification
-        if (!RegionManager.isClaimed(chunkPos)) {
-            return true;
-        }
-        
-        // If player owns the chunk, allow modification
-        if (RegionManager.canEdit(playerName, chunkPos)) {
-            return true;
-        }
-        
-        // Chunk is claimed by someone else, deny modification
-        String owner = RegionManager.getChunkOwner(chunkPos);
-        if (owner == null) {
-            owner = "unknown player";
-        }
-        serverPlayer.sendMessage(
-            Text.literal("This area is protected by " + owner + "!").formatted(Formatting.RED), 
-            true // Show as action bar message
-        );
-        
+
         return false;
     }
-    
-    public static boolean isChunkProtected(ChunkPos chunkPos) {
-        return RegionManager.isClaimed(chunkPos);
+
+    public static boolean canPlayerModifyBlock(PlayerEntity player, BlockPos blockPos) {
+        if (!(player instanceof ServerPlayerEntity serverPlayer)) {
+            return true; // client-side fallback
+        }
+
+        if (serverPlayer.isCreative() || serverPlayer.hasPermissionLevel(2)) {
+            return true; // Admins can always build
+        }
+
+        ChunkPos chunkPos = new ChunkPos(blockPos);
+        RegionManager.ClaimedChunk claim = RegionManager.getClaim(chunkPos);
+
+        if (claim == null) {
+            return true; // unclaimed chunks are editable
+        }
+
+        UUID uuid = serverPlayer.getUuid();
+        if (canPlayerBuild(uuid, claim)) {
+            return true;
+        }
+
+        // Send denial message
+        String owner = claim.isPlayerClaim()
+                ? serverPlayer.getServer().getUserCache().getByUuid(claim.getOwner())
+                    .map(profile -> profile.getName()).orElse("Unknown Player")
+                : "Group: " + claim.getGroupName();
+
+        sendProtectionMessage(serverPlayer, owner);
+        return false;
     }
-    
-    public static String getChunkOwner(ChunkPos chunkPos) {
-        return RegionManager.getChunkOwner(chunkPos);
-    }
-    
+
     public static void sendProtectionMessage(ServerPlayerEntity player, String owner) {
         player.sendMessage(
             Text.literal("⚠ Protected by ").formatted(Formatting.YELLOW)
-                .append(Text.literal(owner).formatted(Formatting.RED)), 
-            true
+                .append(Text.literal(owner).formatted(Formatting.RED)),
+            true // Action bar
         );
+    }
+
+    public static boolean isChunkProtected(ChunkPos chunkPos) {
+        return RegionManager.isClaimed(chunkPos);
+    }
+
+    public static String getChunkOwner(ChunkPos chunkPos) {
+        return RegionManager.getChunkOwner(chunkPos);
     }
 }
