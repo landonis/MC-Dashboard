@@ -181,8 +181,8 @@ public class DashboardWebSocketClient {
                             int z = message.get("chunkZ").getAsInt();
                             ChunkPos pos = new ChunkPos(x, z);
                             String owner = RegionManager.getChunkOwner(pos);
-                            GameProfile profile = DashboardWebSocketClient.serverInstance.getUserCache().getByName(owner);
-                            UUID uuid = (profile != null) ? profile.getId() : null;
+                            ServerPlayerEntity target = DashboardWebSocketClient.serverInstance.getPlayerManager().getPlayer(owner);
+                            UUID uuid = (target != null) ? target.getUuid() : null;
 
                             if (uuid != null && RegionManager.unclaimChunk(uuid, pos)) {
                                 sendClaimUpdate("ADMIN", pos, "admin_unclaimed");
