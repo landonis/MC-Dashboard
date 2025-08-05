@@ -1,4 +1,3 @@
-
 package net.landonis.dashboardmod;
 
 import com.google.gson.*;
@@ -123,4 +122,40 @@ public class RegionManager {
             return trustedPlayers;
         }
     }
+
+    public static boolean isClaimed(ChunkPos pos) {
+        return claimedChunks.containsKey(pos);
+    }
+
+    public static String getChunkOwner(ChunkPos pos) {
+        ClaimedChunk claim = claimedChunks.get(pos);
+        return (claim != null) ? claim.getOwner().toString() : null;
+    }
+
+    public static boolean canEdit(String playerName, ChunkPos pos) {
+        ClaimedChunk claim = claimedChunks.get(pos);
+        if (claim == null) return true;
+        UUID player = UUID.fromString(playerName);
+        return claim.getOwner().equals(player) || claim.isTrusted(player);
+    }
+
+    public static Set<ChunkPos> getPlayerClaims(String playerName) {
+        UUID uuid = UUID.fromString(playerName);
+        Set<ChunkPos> result = new HashSet<>();
+        for (Map.Entry<ChunkPos, ClaimedChunk> entry : claimedChunks.entrySet()) {
+            if (entry.getValue().getOwner().equals(uuid)) {
+                result.add(entry.getKey());
+            }
+        }
+        return result;
+    }
+
+    public static boolean claimChunk(String playerName, ChunkPos pos) {
+        return claimChunk(UUID.fromString(playerName), pos);
+    }
+
+    public static boolean unclaimChunk(String playerName, ChunkPos pos) {
+        return unclaimChunk(UUID.fromString(playerName), pos);
+    }
+
 }
