@@ -54,4 +54,34 @@ public class Group {
     public String getRole(UUID uuid) {
         return members.get(uuid);
     }
+    public boolean canPromote(UUID actor, UUID target) {
+        String actorRole = roles.get(actor);
+        String targetRole = roles.get(target);
+        return isOwner(actor) || ("admin".equals(actorRole) && !"owner".equals(targetRole));
+    }
+    
+    public void promote(UUID target) {
+        String current = roles.getOrDefault(target, "member");
+        if ("member".equals(current)) {
+            roles.put(target, "builder");
+        } else if ("builder".equals(current)) {
+            roles.put(target, "admin");
+        }
+    }
+    
+    public boolean canDemote(UUID actor, UUID target) {
+        String actorRole = roles.get(actor);
+        String targetRole = roles.get(target);
+        return isOwner(actor) || ("admin".equals(actorRole) && "builder".equals(targetRole));
+    }
+    
+    public void demote(UUID target) {
+        String current = roles.getOrDefault(target, "member");
+        if ("admin".equals(current)) {
+            roles.put(target, "builder");
+        } else if ("builder".equals(current)) {
+            roles.put(target, "member");
+        }
+    }
+
 }
