@@ -44,18 +44,17 @@ public class RegionCommandHandler {
         dispatcher.register(CommandManager.literal("trustlist")
             .requires(source -> source.isExecutedByPlayer())
             .executes(RegionCommandHandler::executeTrustList));
-        // /trust <player>
+
         dispatcher.register(CommandManager.literal("trust")
             .requires(source -> source.isExecutedByPlayer())
             .then(CommandManager.argument("player", net.minecraft.command.argument.GameProfileArgumentType.gameProfile())
-                .executes(ctx -> executeTrust(ctx))));
-        
-        // /untrust <player>
+                .executes(RegionCommandHandler::executeTrust)));
+
         dispatcher.register(CommandManager.literal("untrust")
             .requires(source -> source.isExecutedByPlayer())
             .then(CommandManager.argument("player", net.minecraft.command.argument.GameProfileArgumentType.gameProfile())
-                .executes(ctx -> executeUntrust(ctx))));
-            }
+                .executes(RegionCommandHandler::executeUntrust)));
+    }
 
     private static int executeClaim(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
         ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
@@ -95,7 +94,7 @@ public class RegionCommandHandler {
     private static int executeListClaims(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
         ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
         UUID uuid = player.getUuid();
-        Set<ChunkPos> claims = RegionManager.getPlayerClaims(uuid.toString());
+        Set<ChunkPos> claims = RegionManager.getPlayerClaims(uuid);
 
         if (claims.isEmpty()) {
             player.sendMessage(Text.literal("You don't have any claimed chunks.").formatted(Formatting.YELLOW), false);
@@ -160,21 +159,22 @@ public class RegionCommandHandler {
         }
         return 1;
     }
+
     private static int executeTrust(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
         ServerPlayerEntity sender = ctx.getSource().getPlayerOrThrow();
         ChunkPos pos = sender.getChunkPos();
         RegionManager.ClaimedChunk claim = RegionManager.getClaim(pos);
-    
+
         if (claim == null) {
             sender.sendMessage(Text.literal("This chunk is not claimed.").formatted(Formatting.RED), false);
             return 1;
         }
-    
+
         if (!claim.getOwner().equals(sender.getUuid())) {
             sender.sendMessage(Text.literal("You do not own this chunk.").formatted(Formatting.RED), false);
             return 1;
         }
-    
+
         Collection<GameProfile> targets = net.minecraft.command.argument.GameProfileArgumentType.getProfileArgument(ctx, "player");
         for (GameProfile target : targets) {
             UUID targetUUID = target.getId();
@@ -189,25 +189,25 @@ public class RegionCommandHandler {
                 sender.sendMessage(Text.literal("Trusted " + target.getName() + " for this chunk.").formatted(Formatting.GREEN), false);
             }
         }
-    
+
         return 1;
     }
-    
+
     private static int executeUntrust(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
         ServerPlayerEntity sender = ctx.getSource().getPlayerOrThrow();
         ChunkPos pos = sender.getChunkPos();
         RegionManager.ClaimedChunk claim = RegionManager.getClaim(pos);
-    
+
         if (claim == null) {
             sender.sendMessage(Text.literal("This chunk is not claimed.").formatted(Formatting.RED), false);
             return 1;
         }
-    
+
         if (!claim.getOwner().equals(sender.getUuid())) {
             sender.sendMessage(Text.literal("You do not own this chunk.").formatted(Formatting.RED), false);
             return 1;
         }
-    
+
         Collection<GameProfile> targets = net.minecraft.command.argument.GameProfileArgumentType.getProfileArgument(ctx, "player");
         for (GameProfile target : targets) {
             UUID targetUUID = target.getId();
@@ -218,8 +218,7 @@ public class RegionCommandHandler {
                 sender.sendMessage(Text.literal(target.getName() + " is not trusted.").formatted(Formatting.RED), false);
             }
         }
-    
+
         return 1;
     }
-
 }
