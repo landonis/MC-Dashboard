@@ -22,7 +22,6 @@ import com.google.gson.JsonSyntaxException;
 import java.util.UUID;
 import java.util.Optional;
 
-import net.minecraft.server.UserCache;
 import com.mojang.authlib.GameProfile;
 
 public class DashboardWebSocketClient {
