@@ -22,11 +22,6 @@ public class RegionCommandHandler {
             registerClaimCommands(dispatcher);
         });
     }
-    
-    public static void updateLastKnownChunk(UUID uuid, ChunkPos newPos) {
-        lastKnownChunks.put(uuid, newPos);
-    }
-
 
     public static boolean isTrackingClaimInfo(UUID uuid) {
         return trackingPlayers.contains(uuid);
