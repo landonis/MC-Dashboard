@@ -13,7 +13,6 @@ import java.util.concurrent.ConcurrentHashMap;
 public class RegionManager {
     private static final Map<ChunkPos, ClaimedChunk> claimedChunks = new ConcurrentHashMap<>();
     private static final File CLAIM_FILE = new File("config/dashboardmod/claims.json");
-    private static final Map<ChunkPos, ClaimedChunk> claims = new HashMap<>();
 
     private static final Map<UUID, String> nameCache = new HashMap<>();
     private static MinecraftServer serverReference;
@@ -259,7 +258,7 @@ public class RegionManager {
     public static Map<String, Set<ChunkPos>> getAllClaims() {
         // Return a copy for safe iteration
         Map<String, Set<ChunkPos>> result = new HashMap<>();
-        for (Map.Entry<ChunkPos, ClaimedChunk> entry : claims.entrySet()) {
+        for (Map.Entry<ChunkPos, ClaimedChunk> entry : claimedChunks.entrySet()) {
             ClaimedChunk chunk = entry.getValue();
             String owner = chunk.isPlayerClaim() ? chunk.getOwner().toString() : chunk.getGroupName();
             result.computeIfAbsent(owner, k -> new HashSet<>()).add(entry.getKey());
@@ -269,7 +268,7 @@ public class RegionManager {
     
     public static List<ChunkPos> getClaims(UUID uuid) {
         List<ChunkPos> result = new ArrayList<>();
-        for (Map.Entry<ChunkPos, ClaimedChunk> entry : claims.entrySet()) {
+        for (Map.Entry<ChunkPos, ClaimedChunk> entry : claimedChunks.entrySet()) {
             ClaimedChunk claim = entry.getValue();
             if (claim.isPlayerClaim() && claim.getOwner().equals(uuid)) {
                 result.add(entry.getKey());
