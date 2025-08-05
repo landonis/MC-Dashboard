@@ -15,6 +15,8 @@ public class GroupManager {
     private static final Map<String, Group> groups = new HashMap<>();
     private static final Gson gson = new Gson();
     private static Path dataFile;
+    private static final Map<UUID, List<String>> invites = new HashMap<>();
+
 
     public static void load(MinecraftServer server) {
         dataFile = server.getSavePath(WorldSavePath.ROOT).resolve("groups.json");
@@ -68,7 +70,7 @@ public class GroupManager {
         Group group = groups.get(groupName);
         if (group == null) return false;
 
-        group.addMember(playerId);
+        group.addMember(playerId, "member");
         userInvites.remove(groupName);
         return true;
     }
