@@ -19,7 +19,7 @@ public class Group {
         return "admin".equals(roles.get(uuid)) || isOwner(uuid);
     }
     public boolean isOwner(UUID uuid) {
-        return "owner".equals(roles.get(uuid));
+            return this.owner.equals(uuid);
     }
 
     public boolean hasPermission(UUID uuid, String permission) {
@@ -82,6 +82,10 @@ public class Group {
         } else if ("builder".equals(current)) {
             roles.put(target, "member");
         }
+    }
+
+    public boolean canInvite(UUID uuid) {
+        return isOwner(uuid) || isAdmin(uuid);
     }
 
 }
