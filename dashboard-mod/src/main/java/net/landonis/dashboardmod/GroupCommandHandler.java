@@ -1,6 +1,7 @@
 package net.landonis.dashboardmod;
 
 import net.landonis.dashboardmod.Group;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 
 import com.mojang.brigadier.arguments.StringArgumentType;
 
@@ -70,7 +71,7 @@ public class GroupCommandHandler {
         try {
             targets = GameProfileArgumentType.getProfileArgument(ctx, "player");
         } catch (CommandSyntaxException e) {
-            source.sendError(Text.literal("Invalid player specified."));
+            ctx.getSource().sendError(Text.literal("Invalid player specified."));
             return 0;
         }
 
@@ -147,7 +148,7 @@ public class GroupCommandHandler {
         try {
             targets = GameProfileArgumentType.getProfileArgument(ctx, "player");
         } catch (CommandSyntaxException e) {
-            source.sendError(Text.literal("Invalid player specified."));
+            ctx.getSource().sendError(Text.literal("Invalid player specified."));
             return 0;
         }
 
@@ -184,7 +185,7 @@ public class GroupCommandHandler {
         try {
             targets = GameProfileArgumentType.getProfileArgument(ctx, "player");
         } catch (CommandSyntaxException e) {
-            source.sendError(Text.literal("Invalid player specified."));
+            ctx.getSource().sendError(Text.literal("Invalid player specified."));
             return 0;
         }
 
