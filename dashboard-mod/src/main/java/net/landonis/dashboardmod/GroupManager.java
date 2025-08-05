@@ -29,7 +29,11 @@ public class GroupManager {
             }
         }
     }
-
+    public static void save() {
+        try {
+            saveGroups();
+        }
+    }
     public static void saveGroups() {
         if (dataFile == null) return;
         try (Writer writer = Files.newBufferedWriter(dataFile)) {
@@ -59,7 +63,7 @@ public class GroupManager {
     public static Collection<Group> getAllGroups() {
         return groups.values();
     }
-        public static void invite(String groupName, UUID playerId) {
+    public static void invite(String groupName, UUID playerId) {
         invites.computeIfAbsent(playerId, k -> new ArrayList<>()).add(groupName);
     }
 
