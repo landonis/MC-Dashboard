@@ -5,18 +5,34 @@ import net.minecraft.util.math.ChunkPos;
 
 import java.io.*;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class RegionManager {
-    private static final Map<String, Set<ChunkPos>> claims = new HashMap<>();
+    private static final Map<String, Set<ChunkPos>> claims = new ConcurrentHashMap<>();
     private static final File CLAIM_FILE = new File("regionprotector_claims.json");
+    
+    // Thread-safe operations
+    private static final Object SAVE_LOCK = new Object();
 
     public static boolean claimChunk(String player, ChunkPos pos) {
-        return claims.computeIfAbsent(player, k -> new HashSet<>()).add(pos);
+        Set<ChunkPos> playerClaims = claims.computeIfAbsent(player, k -> ConcurrentHashMap.newKeySet());
+        boolean added = playerClaims.add(pos);
+        if (added) {
+            saveClaims(); // Auto-save on claim
+        }
+        return added;
     }
 
     public static boolean unclaimChunk(String player, ChunkPos pos) {
         Set<ChunkPos> owned = claims.get(player);
-        return owned != null && owned.remove(pos);
+        if (owned != null && owned.remove(pos)) {
+            if (owned.isEmpty()) {
+                claims.remove(player); // Clean up empty claim sets
+            }
+            saveClaims(); // Auto-save on unclaim
+            return true;
+        }
+        return false;
     }
 
     public static boolean isClaimed(ChunkPos pos) {
@@ -37,7 +53,7 @@ public class RegionManager {
     }
 
     public static Set<ChunkPos> getPlayerClaims(String player) {
-        return claims.getOrDefault(player, new HashSet<>());
+        return new HashSet<>(claims.getOrDefault(player, Collections.emptySet()));
     }
 
     public static Map<String, Set<ChunkPos>> getAllClaims() {
@@ -45,6 +61,7 @@ public class RegionManager {
     }
 
     public static void loadClaims() {
+        claims.clear(); // Clear existing claims
         if (!CLAIM_FILE.exists()) return;
         try (Reader reader = new FileReader(CLAIM_FILE)) {
             JsonObject obj = JsonParser.parseReader(reader).getAsJsonObject();
@@ -54,7 +71,7 @@ public class RegionManager {
                     JsonArray arr = el.getAsJsonArray();
                     chunks.add(new ChunkPos(arr.get(0).getAsInt(), arr.get(1).getAsInt()));
                 }
-                claims.put(entry.getKey(), chunks);
+                claims.put(entry.getKey(), ConcurrentHashMap.newKeySet(chunks));
             }
             System.out.println("[RegionProtector] Loaded " + claims.size() + " player claims");
         } catch (IOException e) {
@@ -63,6 +80,12 @@ public class RegionManager {
     }
 
     public static void saveClaims() {
+        synchronized (SAVE_LOCK) {
+            saveClaimsInternal();
+        }
+    }
+    
+    private static void saveClaimsInternal() {
         JsonObject out = new JsonObject();
         for (Map.Entry<String, Set<ChunkPos>> entry : claims.entrySet()) {
             JsonArray array = new JsonArray();
@@ -77,9 +100,17 @@ public class RegionManager {
 
         try (Writer writer = new FileWriter(CLAIM_FILE)) {
             new GsonBuilder().setPrettyPrinting().create().toJson(out, writer);
-            System.out.println("[RegionProtector] Saved claims for " + claims.size() + " players");
+            System.out.println("[RegionProtector] Saved claims for " + claims.size() + " players to " + CLAIM_FILE.getAbsolutePath());
         } catch (IOException e) {
             System.err.println("[RegionProtector] Error saving claims: " + e.getMessage());
         }
+    }
+    
+    public static int getTotalClaimsCount() {
+        return claims.values().stream().mapToInt(Set::size).sum();
+    }
+    
+    public static int getPlayerClaimsCount(String player) {
+        return claims.getOrDefault(player, Collections.emptySet()).size();
     }
 }

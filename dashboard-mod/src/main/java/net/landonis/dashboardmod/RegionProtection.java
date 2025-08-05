@@ -5,6 +5,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
+import net.minecraft.util.Formatting;
 
 public class RegionProtection {
     
@@ -13,8 +14,8 @@ public class RegionProtection {
             return true; // Allow client-side operations
         }
         
-        // Allow creative mode players (assuming they're admins)
-        if (serverPlayer.isCreative()) {
+        // Allow creative mode players and ops (assuming they're admins)
+        if (serverPlayer.isCreative() || serverPlayer.hasPermissionLevel(2)) {
             return true;
         }
         
@@ -34,7 +35,7 @@ public class RegionProtection {
         // Chunk is claimed by someone else, deny modification
         String owner = RegionManager.getChunkOwner(chunkPos);
         serverPlayer.sendMessage(
-            Text.literal("§cThis area is protected by " + owner + "!"), 
+            Text.literal("This area is protected by " + owner + "!").formatted(Formatting.RED), 
             true // Show as action bar message
         );
         
@@ -47,5 +48,13 @@ public class RegionProtection {
     
     public static String getChunkOwner(ChunkPos chunkPos) {
         return RegionManager.getChunkOwner(chunkPos);
+    }
+    
+    public static void sendProtectionMessage(ServerPlayerEntity player, String owner) {
+        player.sendMessage(
+            Text.literal("⚠ Protected by ").formatted(Formatting.YELLOW)
+                .append(Text.literal(owner).formatted(Formatting.RED)), 
+            true
+        );
     }
 }

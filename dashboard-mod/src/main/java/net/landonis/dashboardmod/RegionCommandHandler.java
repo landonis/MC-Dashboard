@@ -1,13 +1,15 @@
 package net.landonis.dashboardmod;
 
 import com.mojang.brigadier.CommandDispatcher;
-import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.ChunkPos;
+import net.minecraft.util.Formatting;
 
 import java.util.Set;
 
@@ -21,78 +23,116 @@ public class RegionCommandHandler {
     private static void registerClaimCommands(CommandDispatcher<ServerCommandSource> dispatcher) {
         // /claim command
         dispatcher.register(CommandManager.literal("claim")
+            .requires(source -> source.isExecutedByPlayer())
             .executes(ctx -> {
-                ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
-                ChunkPos pos = player.getChunkPos();
-                String playerName = player.getName().getString();
-                
-                if (RegionManager.isClaimed(pos)) {
-                    String owner = RegionManager.getChunkOwner(pos);
-                    if (owner.equals(playerName)) {
-                        player.sendMessage(Text.literal("§eYou already own this chunk."), false);
-                    } else {
-                        player.sendMessage(Text.literal("§cThis chunk is already claimed by " + owner + "."), false);
-                    }
-                } else if (RegionManager.claimChunk(playerName, pos)) {
-                    player.sendMessage(Text.literal("§aChunk claimed successfully!"), false);
-                    
-                    // Notify dashboard if connected
-                    DashboardWebSocketClient.sendClaimUpdate(playerName, pos, "claimed");
-                } else {
-                    player.sendMessage(Text.literal("§cFailed to claim chunk."), false);
-                }
-                return 1;
+                return executeClaim(ctx);
             }));
 
         // /unclaim command
         dispatcher.register(CommandManager.literal("unclaim")
+            .requires(source -> source.isExecutedByPlayer())
             .executes(ctx -> {
-                ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
-                ChunkPos pos = player.getChunkPos();
-                String playerName = player.getName().getString();
-                
-                if (RegionManager.unclaimChunk(playerName, pos)) {
-                    player.sendMessage(Text.literal("§eChunk unclaimed successfully."), false);
-                    
-                    // Notify dashboard if connected
-                    DashboardWebSocketClient.sendClaimUpdate(playerName, pos, "unclaimed");
-                } else {
-                    player.sendMessage(Text.literal("§cYou don't own this chunk or it's not claimed."), false);
-                }
-                return 1;
+                return executeUnclaim(ctx);
             }));
 
         // /claims command - list player's claims
         dispatcher.register(CommandManager.literal("claims")
+            .requires(source -> source.isExecutedByPlayer())
             .executes(ctx -> {
-                ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
-                String playerName = player.getName().getString();
-                Set<ChunkPos> claims = RegionManager.getPlayerClaims(playerName);
-                
-                if (claims.isEmpty()) {
-                    player.sendMessage(Text.literal("§eYou don't have any claimed chunks."), false);
-                } else {
-                    player.sendMessage(Text.literal("§aYour claimed chunks (" + claims.size() + "):"), false);
-                    for (ChunkPos pos : claims) {
-                        player.sendMessage(Text.literal("§7- Chunk " + pos.x + ", " + pos.z), false);
-                    }
-                }
-                return 1;
+                return executeListClaims(ctx);
             }));
 
         // /claiminfo command - info about current chunk
         dispatcher.register(CommandManager.literal("claiminfo")
+            .requires(source -> source.isExecutedByPlayer())
             .executes(ctx -> {
-                ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
-                ChunkPos pos = player.getChunkPos();
-                
-                if (RegionManager.isClaimed(pos)) {
-                    String owner = RegionManager.getChunkOwner(pos);
-                    player.sendMessage(Text.literal("§eThis chunk is claimed by: §a" + owner), false);
-                } else {
-                    player.sendMessage(Text.literal("§7This chunk is not claimed by anyone."), false);
-                }
-                return 1;
+                return executeClaimInfo(ctx);
             }));
+
+        // /claimhelp command - show help
+        dispatcher.register(CommandManager.literal("claimhelp")
+            .executes(ctx -> {
+                return executeHelp(ctx);
+            }));
+    }
+
+    private static int executeClaim(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        ChunkPos pos = player.getChunkPos();
+        String playerName = player.getName().getString();
+        
+        if (RegionManager.isClaimed(pos)) {
+            String owner = RegionManager.getChunkOwner(pos);
+            if (owner.equals(playerName)) {
+                player.sendMessage(Text.literal("You already own this chunk.").formatted(Formatting.YELLOW), false);
+            } else {
+                player.sendMessage(Text.literal("This chunk is already claimed by " + owner + ".").formatted(Formatting.RED), false);
+            }
+        } else if (RegionManager.claimChunk(playerName, pos)) {
+            player.sendMessage(Text.literal("Chunk claimed successfully! (" + pos.x + ", " + pos.z + ")").formatted(Formatting.GREEN), false);
+            
+            // Notify dashboard if connected
+            DashboardWebSocketClient.sendClaimUpdate(playerName, pos, "claimed");
+        } else {
+            player.sendMessage(Text.literal("Failed to claim chunk.").formatted(Formatting.RED), false);
+        }
+        return 1;
+    }
+
+    private static int executeUnclaim(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        ChunkPos pos = player.getChunkPos();
+        String playerName = player.getName().getString();
+        
+        if (RegionManager.unclaimChunk(playerName, pos)) {
+            player.sendMessage(Text.literal("Chunk unclaimed successfully. (" + pos.x + ", " + pos.z + ")").formatted(Formatting.YELLOW), false);
+            
+            // Notify dashboard if connected
+            DashboardWebSocketClient.sendClaimUpdate(playerName, pos, "unclaimed");
+        } else {
+            player.sendMessage(Text.literal("You don't own this chunk or it's not claimed.").formatted(Formatting.RED), false);
+        }
+        return 1;
+    }
+
+    private static int executeListClaims(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        String playerName = player.getName().getString();
+        Set<ChunkPos> claims = RegionManager.getPlayerClaims(playerName);
+        
+        if (claims.isEmpty()) {
+            player.sendMessage(Text.literal("You don't have any claimed chunks.").formatted(Formatting.YELLOW), false);
+        } else {
+            player.sendMessage(Text.literal("Your claimed chunks (" + claims.size() + "):").formatted(Formatting.GREEN), false);
+            for (ChunkPos pos : claims) {
+                player.sendMessage(Text.literal("- Chunk " + pos.x + ", " + pos.z).formatted(Formatting.GRAY), false);
+            }
+        }
+        return 1;
+    }
+
+    private static int executeClaimInfo(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        ChunkPos pos = player.getChunkPos();
+        
+        if (RegionManager.isClaimed(pos)) {
+            String owner = RegionManager.getChunkOwner(pos);
+            player.sendMessage(Text.literal("This chunk is claimed by: ").formatted(Formatting.YELLOW)
+                .append(Text.literal(owner).formatted(Formatting.GREEN)), false);
+        } else {
+            player.sendMessage(Text.literal("This chunk is not claimed by anyone.").formatted(Formatting.GRAY), false);
+        }
+        return 1;
+    }
+
+    private static int executeHelp(CommandContext<ServerCommandSource> ctx) {
+        ServerCommandSource source = ctx.getSource();
+        source.sendFeedback(() -> Text.literal("=== Region Protection Commands ===").formatted(Formatting.GOLD), false);
+        source.sendFeedback(() -> Text.literal("/claim - Claim the current chunk").formatted(Formatting.GREEN), false);
+        source.sendFeedback(() -> Text.literal("/unclaim - Unclaim the current chunk").formatted(Formatting.GREEN), false);
+        source.sendFeedback(() -> Text.literal("/claims - List your claimed chunks").formatted(Formatting.GREEN), false);
+        source.sendFeedback(() -> Text.literal("/claiminfo - Get info about current chunk").formatted(Formatting.GREEN), false);
+        source.sendFeedback(() -> Text.literal("/claimhelp - Show this help").formatted(Formatting.GREEN), false);
+        return 1;
     }
 }

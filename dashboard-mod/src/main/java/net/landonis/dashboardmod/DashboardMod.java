@@ -2,10 +2,15 @@ package net.landonis.dashboardmod;
 
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
+import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.ActionResult;
+import net.minecraft.util.TypedActionResult;
 
 public class DashboardMod implements ModInitializer {
 
@@ -17,7 +22,7 @@ public class DashboardMod implements ModInitializer {
         RegionManager.loadClaims();
         RegionCommandHandler.registerCommands();
         
-        // Register region protection events
+        // Register block interaction events for region protection
         UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
             if (world.isClient) return ActionResult.PASS;
             
@@ -27,6 +32,17 @@ public class DashboardMod implements ModInitializer {
             return ActionResult.PASS;
         });
 
+        // Register block breaking events
+        PlayerBlockBreakEvents.BEFORE.register((world, player, pos, state, blockEntity) -> {
+            if (world.isClient) return ActionResult.PASS;
+            
+            if (!RegionProtection.canPlayerModifyBlock(player, pos)) {
+                return false;
+            }
+            return true;
+        });
+
+        // Register block attack events (left-click)
         AttackBlockCallback.EVENT.register((player, world, hand, pos, direction) -> {
             if (world.isClient) return ActionResult.PASS;
             
@@ -34,6 +50,12 @@ public class DashboardMod implements ModInitializer {
                 return ActionResult.FAIL;
             }
             return ActionResult.PASS;
+        });
+
+        // Register player join events to send welcome message
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
+            ServerPlayerEntity player = handler.getPlayer();
+            player.sendMessage(net.minecraft.text.Text.literal("§a[Region Protection] Welcome! Use /claim to protect your builds."), false);
         });
 
         // When the server has started, connect to dashboard and save claims on shutdown

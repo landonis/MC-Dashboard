@@ -12,14 +12,17 @@ import java.util.stream.Collectors;
 import net.minecraft.text.Text;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.math.ChunkPos;
+import net.minecraft.util.Formatting;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonParser;
+import com.google.gson.JsonSyntaxException;
 
 public class DashboardWebSocketClient {
     private static WebSocket webSocket;
     public static MinecraftServer serverInstance;
+    private static boolean isConnected = false;
 
     public static void connect(MinecraftServer server) {
         serverInstance = server;
@@ -29,8 +32,11 @@ public class DashboardWebSocketClient {
             webSocket = client.newWebSocketBuilder()
                     .buildAsync(URI.create("ws://localhost:3020/ws/minecraft"), new WebSocketListener())
                     .join();
+            isConnected = true;
+            System.out.println("[DashboardMod] Successfully connected to WebSocket");
         } catch (Exception e) {
-            System.err.println("[DashboardMod] Failed to connect to WebSocket: " + e.getMessage());
+            System.err.println("[DashboardMod] Failed to connect to WebSocket (this is normal if dashboard backend is not running): " + e.getMessage());
+            isConnected = false;
         }
     }
 
@@ -39,7 +45,7 @@ public class DashboardWebSocketClient {
     }
 
     public static void sendServerStatus() {
-        if (webSocket != null && serverInstance != null) {
+        if (isConnected && webSocket != null && serverInstance != null) {
             JsonObject message = new JsonObject();
             message.addProperty("type", "server_status");
             message.addProperty("message", "Server started with Region Protection");
@@ -48,8 +54,8 @@ public class DashboardWebSocketClient {
     }
 
     public static void sendMessage(String content) {
-        if (webSocket != null && serverInstance != null) {
-            serverInstance.getPlayerManager().broadcast(Text.of("[Dashboard] " + content), false);
+        if (isConnected && webSocket != null && serverInstance != null) {
+            serverInstance.getPlayerManager().broadcast(Text.literal("[Dashboard] " + content).formatted(Formatting.AQUA), false);
     
             JsonObject message = new JsonObject();
             message.addProperty("type", "message_sent");
@@ -59,7 +65,7 @@ public class DashboardWebSocketClient {
     }
 
     public static void listPlayers() {
-        if (webSocket != null && serverInstance != null) {
+        if (isConnected && webSocket != null && serverInstance != null) {
             List<String> playerNames = serverInstance.getPlayerManager()
                 .getPlayerList()
                 .stream()
@@ -79,7 +85,7 @@ public class DashboardWebSocketClient {
     }
 
     public static void sendClaimUpdate(String player, ChunkPos pos, String action) {
-        if (webSocket != null) {
+        if (isConnected && webSocket != null) {
             JsonObject message = new JsonObject();
             message.addProperty("type", "claim_update");
             message.addProperty("player", player);
@@ -91,7 +97,7 @@ public class DashboardWebSocketClient {
     }
 
     public static void sendClaimsData() {
-        if (webSocket != null) {
+        if (isConnected && webSocket != null) {
             JsonObject response = new JsonObject();
             response.addProperty("type", "claims_data");
             
@@ -114,6 +120,10 @@ public class DashboardWebSocketClient {
         }
     }
     
+    public static boolean isConnected() {
+        return isConnected;
+    }
+    
     private static class WebSocketListener implements Listener {
         @Override
         public void onOpen(WebSocket webSocket) {
@@ -127,7 +137,14 @@ public class DashboardWebSocketClient {
             webSocket.request(1);
         
             try {
-                JsonObject message = JsonParser.parseString(data.toString()).getAsJsonObject();
+                JsonObject message;
+                try {
+                    message = JsonParser.parseString(data.toString()).getAsJsonObject();
+                } catch (JsonSyntaxException e) {
+                    System.err.println("[DashboardMod] Invalid JSON received: " + data);
+                    return null;
+                }
+                
                 String type = message.get("type").getAsString();
         
                 switch (type) {
@@ -178,11 +195,13 @@ public class DashboardWebSocketClient {
         @Override
         public void onError(WebSocket webSocket, Throwable error) {
             System.err.println("[DashboardMod] WebSocket error: " + error.getMessage());
+            isConnected = false;
         }
 
         @Override
         public CompletionStage<?> onClose(WebSocket webSocket, int statusCode, String reason) {
             System.out.println("[DashboardMod] WebSocket closed: " + reason);
+            isConnected = false;
             return null;
         }
     }
