@@ -1,5 +1,7 @@
 package net.landonis.dashboardmod;
 
+import com.mojang.brigadier.arguments.StringArgumentType;
+
 import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
@@ -47,7 +49,7 @@ public class GroupCommandHandler {
 
     private static int create(CommandContext<ServerCommandSource> ctx) {
         ServerPlayerEntity player = getPlayer(ctx);
-        String name = net.minecraft.command.argument.StringArgumentType.getString(ctx, "name");
+        String name = StringArgumentType.getString(ctx, "name");
 
         if (GroupManager.exists(name)) {
             player.sendMessage(Text.literal("Group already exists.").formatted(Formatting.RED), false);
@@ -61,7 +63,7 @@ public class GroupCommandHandler {
 
     private static int invite(CommandContext<ServerCommandSource> ctx) {
         ServerPlayerEntity sender = getPlayer(ctx);
-        String groupName = net.minecraft.command.argument.StringArgumentType.getString(ctx, "group");
+        String groupName = StringArgumentType.getString(ctx, "group");
         Collection<GameProfile> targets = GameProfileArgumentType.getProfileArgument(ctx, "player");
 
         GroupManager.Group group = GroupManager.get(groupName);
@@ -89,7 +91,7 @@ public class GroupCommandHandler {
 
     private static int accept(CommandContext<ServerCommandSource> ctx) {
         ServerPlayerEntity player = getPlayer(ctx);
-        String groupName = net.minecraft.command.argument.StringArgumentType.getString(ctx, "group");
+        String groupName = StringArgumentType.getString(ctx, "group");
 
         boolean success = GroupManager.accept(groupName, player.getUuid());
         if (success) {
@@ -102,7 +104,7 @@ public class GroupCommandHandler {
 
     private static int decline(CommandContext<ServerCommandSource> ctx) {
         ServerPlayerEntity player = getPlayer(ctx);
-        String groupName = net.minecraft.command.argument.StringArgumentType.getString(ctx, "group");
+        String groupName = StringArgumentType.getString(ctx, "group");
 
         boolean success = GroupManager.decline(groupName, player.getUuid());
         if (success) {
@@ -130,7 +132,7 @@ public class GroupCommandHandler {
 
     private static int promote(CommandContext<ServerCommandSource> ctx) {
         ServerPlayerEntity sender = getPlayer(ctx);
-        String groupName = net.minecraft.command.argument.StringArgumentType.getString(ctx, "group");
+        String groupName = StringArgumentType.getString(ctx, "group");
         Collection<GameProfile> targets = GameProfileArgumentType.getProfileArgument(ctx, "player");
 
         GroupManager.Group group = GroupManager.get(groupName);
@@ -160,7 +162,7 @@ public class GroupCommandHandler {
 
     private static int demote(CommandContext<ServerCommandSource> ctx) {
         ServerPlayerEntity sender = getPlayer(ctx);
-        String groupName = net.minecraft.command.argument.StringArgumentType.getString(ctx, "group");
+        String groupName = StringArgumentType.getString(ctx, "group");
         Collection<GameProfile> targets = GameProfileArgumentType.getProfileArgument(ctx, "player");
 
         GroupManager.Group group = GroupManager.get(groupName);
