@@ -254,4 +254,26 @@ public class RegionManager {
             return trustedPlayers;
         }
     }
+    
+    public static Map<String, Set<ChunkPos>> getAllClaims() {
+        // Return a copy for safe iteration
+        Map<String, Set<ChunkPos>> result = new HashMap<>();
+        for (Map.Entry<ChunkPos, ClaimedChunk> entry : claims.entrySet()) {
+            ClaimedChunk chunk = entry.getValue();
+            String owner = chunk.isPlayerClaim() ? chunk.getOwner().toString() : chunk.getGroupName();
+            result.computeIfAbsent(owner, k -> new HashSet<>()).add(entry.getKey());
+        }
+        return result;
+    }
+    
+    public static List<ChunkPos> getClaims(UUID uuid) {
+        List<ChunkPos> result = new ArrayList<>();
+        for (Map.Entry<ChunkPos, ClaimedChunk> entry : claims.entrySet()) {
+            ClaimedChunk claim = entry.getValue();
+            if (claim.isPlayerClaim() && claim.getOwner().equals(uuid)) {
+                result.add(entry.getKey());
+            }
+        }
+        return result;
+    }
 }
