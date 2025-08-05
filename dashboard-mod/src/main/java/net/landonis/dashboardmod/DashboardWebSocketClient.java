@@ -20,6 +20,8 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
 import java.util.UUID;
+import java.util.Optional;
+
 import com.mojang.authlib.GameProfile;
 
 public class DashboardWebSocketClient {
@@ -179,7 +181,7 @@ public class DashboardWebSocketClient {
                             int z = message.get("chunkZ").getAsInt();
                             ChunkPos pos = new ChunkPos(x, z);
                             String owner = RegionManager.getChunkOwner(pos);
-                            GameProfile profile = DashboardWebSocketClient.serverInstance.getUserCache().getProfileByName(owner);
+                            GameProfile profile = DashboardWebSocketClient.serverInstance.getUserCache().getByName(owner);
                             UUID uuid = (profile != null) ? profile.getId() : null;
 
                             if (uuid != null && RegionManager.unclaimChunk(uuid, pos)) {
