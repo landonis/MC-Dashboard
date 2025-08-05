@@ -34,13 +34,11 @@ public class DashboardMod implements ModInitializer {
 
         // Register block breaking events
         PlayerBlockBreakEvents.BEFORE.register((world, player, pos, state, blockEntity) -> {
-            if (world.isClient) return ActionResult.PASS;
+            if (world.isClient) return true; // or false, depending on your logic
             
-            if (!RegionProtection.canPlayerModifyBlock(player, pos)) {
-                return false;
-            }
-            return true;
+            return RegionProtection.canPlayerModifyBlock(player, pos);
         });
+
 
         // Register block attack events (left-click)
         AttackBlockCallback.EVENT.register((player, world, hand, pos, direction) -> {
