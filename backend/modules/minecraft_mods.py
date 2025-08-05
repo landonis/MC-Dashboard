@@ -31,7 +31,7 @@ SYSTEMD_SERVICE_PATH = "/etc/systemd/system"
 MOD_SERVICE = "dashboard_mod.service"
 
 # Tooling
-GRADLE_EXEC = os.path.join(DASHBOARD_APP_DIR, "/dashboard-mod/gradlew")
+GRADLE_EXEC = "/opt/dashboard-app/dashboard-mod/gradlew"
 CHOWN_EXEC = "/usr/bin/chown"
 CHMOD_EXEC = "/usr/bin/chmod"
 SYSTEMCTL_EXEC = "/usr/bin/systemctl"
