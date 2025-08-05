@@ -22,6 +22,7 @@ import com.google.gson.JsonSyntaxException;
 import java.util.UUID;
 import java.util.Optional;
 
+import net.minecraft.server.UserCache;
 import com.mojang.authlib.GameProfile;
 
 public class DashboardWebSocketClient {
@@ -181,8 +182,8 @@ public class DashboardWebSocketClient {
                             int z = message.get("chunkZ").getAsInt();
                             ChunkPos pos = new ChunkPos(x, z);
                             String owner = RegionManager.getChunkOwner(pos);
-                            ServerPlayerEntity target = DashboardWebSocketClient.serverInstance.getPlayerManager().getPlayer(owner);
-                            UUID uuid = (target != null) ? target.getUuid() : null;
+                            GameProfile profile = DashboardWebSocketClient.serverInstance.getUserCache().findByName(owner);
+                            UUID uuid = (profile != null) ? profile.getId() : null;
 
                             if (uuid != null && RegionManager.unclaimChunk(uuid, pos)) {
                                 sendClaimUpdate("ADMIN", pos, "admin_unclaimed");
