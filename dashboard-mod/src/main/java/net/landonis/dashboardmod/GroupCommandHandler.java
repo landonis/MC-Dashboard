@@ -138,7 +138,7 @@ public class GroupCommandHandler {
         String groupName = StringArgumentType.getString(ctx, "group");
         Collection<GameProfile> targets = GameProfileArgumentType.getProfileArgument(ctx, "player");
 
-        GroupManager.Group group = GroupManager.get(groupName);
+        Group group = GroupManager.get(groupName);
         if (group == null) {
             sender.sendMessage(Text.literal("Group not found.").formatted(Formatting.RED), false);
             return 0;
@@ -168,7 +168,7 @@ public class GroupCommandHandler {
         String groupName = StringArgumentType.getString(ctx, "group");
         Collection<GameProfile> targets = GameProfileArgumentType.getProfileArgument(ctx, "player");
 
-        GroupManager.Group group = GroupManager.get(groupName);
+        Group group = GroupManager.get(groupName);
         if (group == null) {
             sender.sendMessage(Text.literal("Group not found.").formatted(Formatting.RED), false);
             return 0;
