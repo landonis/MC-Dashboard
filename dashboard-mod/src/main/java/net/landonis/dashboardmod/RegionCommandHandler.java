@@ -49,6 +49,14 @@ public class RegionCommandHandler {
                 return executeClaimInfo(ctx);
             }));
 
+        
+        // /trustlist - list trusted players in current chunk
+        dispatcher.register(CommandManager.literal("trustlist")
+            .requires(source -> source.isExecutedByPlayer())
+            .executes(ctx -> {
+                return executeTrustList(ctx);
+            }));
+
         // /claimhelp command - show help
         dispatcher.register(CommandManager.literal("claimhelp")
             .executes(ctx -> {
@@ -132,7 +140,32 @@ public class RegionCommandHandler {
         source.sendFeedback(() -> Text.literal("/unclaim - Unclaim the current chunk").formatted(Formatting.GREEN), false);
         source.sendFeedback(() -> Text.literal("/claims - List your claimed chunks").formatted(Formatting.GREEN), false);
         source.sendFeedback(() -> Text.literal("/claiminfo - Get info about current chunk").formatted(Formatting.GREEN), false);
-        source.sendFeedback(() -> Text.literal("/claimhelp - Show this help").formatted(Formatting.GREEN), false);
+        source.sendFeedback(() -> Text.literal("/claimhelp - Show this help").formatted(Formatting.GREEN), false", false);
+        source.sendFeedback(() -> Text.literal("/trust <player> - Allow player to build in your claim").formatted(Formatting.GREEN), false);
+        source.sendFeedback(() -> Text.literal("/untrust <player> - Remove trust from a player").formatted(Formatting.GREEN), false);
         return 1;
     }
 }
+
+    private static int executeTrustList(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        ChunkPos pos = player.getChunkPos();
+        ClaimedChunk claim = RegionManager.getClaim(pos);
+
+        if (claim == null) {
+            player.sendMessage(Text.literal("This chunk is not claimed.").formatted(Formatting.RED), false);
+        } else if (!claim.getOwner().equals(player.getUuid())) {
+            player.sendMessage(Text.literal("You do not own this chunk.").formatted(Formatting.RED), false);
+        } else {
+            Set<UUID> trusted = claim.getTrustedPlayers();
+            if (trusted.isEmpty()) {
+                player.sendMessage(Text.literal("No players are trusted in this chunk.").formatted(Formatting.YELLOW), false);
+            } else {
+                player.sendMessage(Text.literal("Trusted players in this chunk:").formatted(Formatting.GREEN), false);
+                for (UUID uuid : trusted) {
+                    player.sendMessage(Text.literal("- " + uuid).formatted(Formatting.GRAY), false);
+                }
+            }
+        }
+        return 1;
+    }
