@@ -1,5 +1,7 @@
 package net.landonis.dashboardmod;
 
+import net.landonis.dashboardmod.Group;
+
 import com.mojang.brigadier.arguments.StringArgumentType;
 
 import com.mojang.authlib.GameProfile;
@@ -66,7 +68,8 @@ public class GroupCommandHandler {
         String groupName = StringArgumentType.getString(ctx, "group");
         Collection<GameProfile> targets = GameProfileArgumentType.getProfileArgument(ctx, "player");
 
-        GroupManager.Group group = GroupManager.get(groupName);
+        Group group = GroupManager.get(groupName);
+        
         if (group == null) {
             sender.sendMessage(Text.literal("Group not found.").formatted(Formatting.RED), false);
             return 0;
