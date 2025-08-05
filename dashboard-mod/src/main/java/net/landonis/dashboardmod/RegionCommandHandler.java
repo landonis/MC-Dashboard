@@ -44,7 +44,18 @@ public class RegionCommandHandler {
         dispatcher.register(CommandManager.literal("trustlist")
             .requires(source -> source.isExecutedByPlayer())
             .executes(RegionCommandHandler::executeTrustList));
-    }
+        // /trust <player>
+        dispatcher.register(CommandManager.literal("trust")
+            .requires(source -> source.isExecutedByPlayer())
+            .then(CommandManager.argument("player", net.minecraft.command.argument.GameProfileArgumentType.gameProfile())
+                .executes(ctx -> executeTrust(ctx))));
+        
+        // /untrust <player>
+        dispatcher.register(CommandManager.literal("untrust")
+            .requires(source -> source.isExecutedByPlayer())
+            .then(CommandManager.argument("player", net.minecraft.command.argument.GameProfileArgumentType.gameProfile())
+                .executes(ctx -> executeUntrust(ctx))));
+            }
 
     private static int executeClaim(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
         ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
@@ -149,4 +160,66 @@ public class RegionCommandHandler {
         }
         return 1;
     }
+    private static int executeTrust(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        ServerPlayerEntity sender = ctx.getSource().getPlayerOrThrow();
+        ChunkPos pos = sender.getChunkPos();
+        RegionManager.ClaimedChunk claim = RegionManager.getClaim(pos);
+    
+        if (claim == null) {
+            sender.sendMessage(Text.literal("This chunk is not claimed.").formatted(Formatting.RED), false);
+            return 1;
+        }
+    
+        if (!claim.getOwner().equals(sender.getUuid())) {
+            sender.sendMessage(Text.literal("You do not own this chunk.").formatted(Formatting.RED), false);
+            return 1;
+        }
+    
+        List<GameProfile> targets = net.minecraft.command.argument.GameProfileArgumentType.getProfileArgument(ctx, "player");
+        for (GameProfile target : targets) {
+            UUID targetUUID = target.getId();
+            if (targetUUID.equals(sender.getUuid())) {
+                sender.sendMessage(Text.literal("You can't trust yourself.").formatted(Formatting.RED), false);
+                continue;
+            }
+            if (claim.getTrustedPlayers().contains(targetUUID)) {
+                sender.sendMessage(Text.literal(target.getName() + " is already trusted.").formatted(Formatting.YELLOW), false);
+            } else {
+                claim.addTrustedPlayer(targetUUID);
+                sender.sendMessage(Text.literal("Trusted " + target.getName() + " for this chunk.").formatted(Formatting.GREEN), false);
+            }
+        }
+    
+        return 1;
+    }
+    
+    private static int executeUntrust(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        ServerPlayerEntity sender = ctx.getSource().getPlayerOrThrow();
+        ChunkPos pos = sender.getChunkPos();
+        RegionManager.ClaimedChunk claim = RegionManager.getClaim(pos);
+    
+        if (claim == null) {
+            sender.sendMessage(Text.literal("This chunk is not claimed.").formatted(Formatting.RED), false);
+            return 1;
+        }
+    
+        if (!claim.getOwner().equals(sender.getUuid())) {
+            sender.sendMessage(Text.literal("You do not own this chunk.").formatted(Formatting.RED), false);
+            return 1;
+        }
+    
+        List<GameProfile> targets = net.minecraft.command.argument.GameProfileArgumentType.getProfileArgument(ctx, "player");
+        for (GameProfile target : targets) {
+            UUID targetUUID = target.getId();
+            if (claim.getTrustedPlayers().contains(targetUUID)) {
+                claim.removeTrustedPlayer(targetUUID);
+                sender.sendMessage(Text.literal("Removed trust from " + target.getName() + ".").formatted(Formatting.YELLOW), false);
+            } else {
+                sender.sendMessage(Text.literal(target.getName() + " is not trusted.").formatted(Formatting.RED), false);
+            }
+        }
+    
+        return 1;
+    }
+
 }
