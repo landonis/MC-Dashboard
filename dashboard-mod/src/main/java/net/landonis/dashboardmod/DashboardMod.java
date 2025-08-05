@@ -34,9 +34,11 @@ public class DashboardMod implements ModInitializer {
         PlayerBlockBreakEvents.BEFORE.register((world, player, pos, state, blockEntity) -> {
             ChunkPos chunkPos = new ChunkPos(pos);
             ClaimedChunk claim = RegionManager.getClaim(chunkPos);
-            if (claim != null && !claim.getOwner().equals(player.getUuid()) && !claim.isTrusted(player.getUuid())) {
+            if (claim != null && !canPlayerBuild(player.getUuid(), claim)) {
                 player.sendMessage(Text.literal("You can't break blocks in this claimed area.").formatted(Formatting.RED), false);
                 return false;
+            }
+
             }
             return true;
         });
@@ -46,9 +48,11 @@ public class DashboardMod implements ModInitializer {
             if (world.isClient) return ActionResult.PASS;
             ChunkPos chunkPos = new ChunkPos(hitResult.getBlockPos());
             ClaimedChunk claim = RegionManager.getClaim(chunkPos);
-            if (claim != null && !claim.getOwner().equals(player.getUuid()) && !claim.isTrusted(player.getUuid())) {
+            if (claim != null && !canPlayerBuild(player.getUuid(), claim)) {
                 player.sendMessage(Text.literal("You can't interact with blocks here.").formatted(Formatting.RED), false);
                 return ActionResult.FAIL;
+            }
+
             }
             return ActionResult.PASS;
         });
@@ -56,11 +60,21 @@ public class DashboardMod implements ModInitializer {
         // Block attack protection
         AttackBlockCallback.EVENT.register((player, world, hand, pos, direction) -> {
             if (world.isClient) return ActionResult.PASS;
-            if (!RegionProtection.canPlayerModifyBlock(player, pos)) {
+            if (!RegionProtection.canPlayerBuild(player.getUuid(), pos)) {
                 return ActionResult.FAIL;
             }
             return ActionResult.PASS;
         });
+
+        private boolean canPlayerBuild(UUID playerUuid, RegionManager.ClaimedChunk claim) {
+            if (claim.isPlayerClaim()) {
+                return claim.getOwner().equals(playerUuid) || claim.isTrusted(playerUuid);
+            } else if (claim.isGroupClaim()) {
+                String groupName = claim.getGroupName();
+                return GroupManager.getGroup(groupName).hasPermission(playerUuid, "build");
+            }
+            return false;
+        }
 
         // Player join event
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
