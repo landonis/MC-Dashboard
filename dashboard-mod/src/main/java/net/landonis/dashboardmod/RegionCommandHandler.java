@@ -1,19 +1,18 @@
 package net.landonis.dashboardmod;
 
+import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import com.mojang.authlib.GameProfile;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
-import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.Formatting;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
+import net.minecraft.util.math.ChunkPos;
+
+import java.util.*;
 
 public class RegionCommandHandler {
     public static void registerCommands() {
@@ -23,51 +22,45 @@ public class RegionCommandHandler {
     }
 
     private static void registerClaimCommands(CommandDispatcher<ServerCommandSource> dispatcher) {
-        // /claim command
         dispatcher.register(CommandManager.literal("claim")
             .requires(source -> source.isExecutedByPlayer())
-            .executes(ctx -> executeClaim(ctx)));
+            .executes(RegionCommandHandler::executeClaim));
 
-        // /unclaim command
         dispatcher.register(CommandManager.literal("unclaim")
             .requires(source -> source.isExecutedByPlayer())
-            .executes(ctx -> executeUnclaim(ctx)));
+            .executes(RegionCommandHandler::executeUnclaim));
 
-        // /claims command
         dispatcher.register(CommandManager.literal("claims")
             .requires(source -> source.isExecutedByPlayer())
-            .executes(ctx -> executeListClaims(ctx)));
+            .executes(RegionCommandHandler::executeListClaims));
 
-        // /claiminfo command
         dispatcher.register(CommandManager.literal("claiminfo")
             .requires(source -> source.isExecutedByPlayer())
-            .executes(ctx -> executeClaimInfo(ctx)));
+            .executes(RegionCommandHandler::executeClaimInfo));
 
-        // /claimhelp
         dispatcher.register(CommandManager.literal("claimhelp")
-            .executes(ctx -> executeHelp(ctx)));
+            .executes(RegionCommandHandler::executeHelp));
 
-        // /trustlist
         dispatcher.register(CommandManager.literal("trustlist")
             .requires(source -> source.isExecutedByPlayer())
-            .executes(ctx -> executeTrustList(ctx)));
+            .executes(RegionCommandHandler::executeTrustList));
     }
 
     private static int executeClaim(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
         ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
         ChunkPos pos = player.getChunkPos();
-        String playerName = player.getName().getString();
+        UUID uuid = player.getUuid();
 
         if (RegionManager.isClaimed(pos)) {
             String owner = RegionManager.getChunkOwner(pos);
-            if (owner.equals(playerName)) {
+            if (owner != null && owner.equals(uuid.toString())) {
                 player.sendMessage(Text.literal("You already own this chunk.").formatted(Formatting.YELLOW), false);
             } else {
                 player.sendMessage(Text.literal("This chunk is already claimed by " + owner + ".").formatted(Formatting.RED), false);
             }
-        } else if (RegionManager.claimChunk(playerName, pos)) {
+        } else if (RegionManager.claimChunk(uuid, pos)) {
             player.sendMessage(Text.literal("Chunk claimed successfully! (" + pos.x + ", " + pos.z + ")").formatted(Formatting.GREEN), false);
-            DashboardWebSocketClient.sendClaimUpdate(playerName, pos, "claimed");
+            DashboardWebSocketClient.sendClaimUpdate(player.getName().getString(), pos, "claimed");
         } else {
             player.sendMessage(Text.literal("Failed to claim chunk.").formatted(Formatting.RED), false);
         }
@@ -77,11 +70,11 @@ public class RegionCommandHandler {
     private static int executeUnclaim(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
         ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
         ChunkPos pos = player.getChunkPos();
-        String playerName = player.getName().getString();
+        UUID uuid = player.getUuid();
 
-        if (RegionManager.unclaimChunk(playerName, pos)) {
+        if (RegionManager.unclaimChunk(uuid, pos)) {
             player.sendMessage(Text.literal("Chunk unclaimed successfully. (" + pos.x + ", " + pos.z + ")").formatted(Formatting.YELLOW), false);
-            DashboardWebSocketClient.sendClaimUpdate(playerName, pos, "unclaimed");
+            DashboardWebSocketClient.sendClaimUpdate(player.getName().getString(), pos, "unclaimed");
         } else {
             player.sendMessage(Text.literal("You don't own this chunk or it's not claimed.").formatted(Formatting.RED), false);
         }
@@ -90,8 +83,8 @@ public class RegionCommandHandler {
 
     private static int executeListClaims(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
         ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
-        String playerName = player.getName().getString();
-        Set<ChunkPos> claims = RegionManager.getPlayerClaims(playerName);
+        UUID uuid = player.getUuid();
+        Set<ChunkPos> claims = RegionManager.getPlayerClaims(uuid);
 
         if (claims.isEmpty()) {
             player.sendMessage(Text.literal("You don't have any claimed chunks.").formatted(Formatting.YELLOW), false);
@@ -150,8 +143,6 @@ public class RegionCommandHandler {
                 for (UUID uuid : trusted) {
                     Optional<GameProfile> profileOpt = player.getServer().getUserCache().getByUuid(uuid);
                     String name = profileOpt.map(GameProfile::getName).orElse(uuid.toString());
-
-                    if (name == null) name = uuid.toString();
                     player.sendMessage(Text.literal("- " + name).formatted(Formatting.GRAY), false);
                 }
             }
