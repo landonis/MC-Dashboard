@@ -15,23 +15,30 @@ import net.minecraft.util.math.ChunkPos;
 import java.util.*;
 
 public class RegionCommandHandler {
-    private static final Set<UUID> claimInfoTrackingPlayers = new HashSet<>();
-    private static final Map<UUID, ChunkPos> lastKnownChunks = new HashMap<>();
-    
+    private static final Set<UUID> trackingPlayers = new HashSet<>();
+
     public static void registerCommands() {
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
             registerClaimCommands(dispatcher);
         });
-    }
-
-    public static boolean isTrackingClaimInfo(UUID uuid) {
-        return claimInfoTrackingPlayers.contains(uuid);
     }
     
     public static void updateLastKnownChunk(UUID uuid, ChunkPos newPos) {
         lastKnownChunks.put(uuid, newPos);
     }
 
+
+    public static boolean isTrackingClaimInfo(UUID uuid) {
+        return trackingPlayers.contains(uuid);
+    }
+    
+    public static void startTracking(UUID uuid) {
+        trackingPlayers.add(uuid);
+    }
+    
+    public static void stopTracking(UUID uuid) {
+        trackingPlayers.remove(uuid);
+    }
 
     private static void registerClaimCommands(CommandDispatcher<ServerCommandSource> dispatcher) {
         dispatcher.register(CommandManager.literal("claim")
@@ -48,11 +55,23 @@ public class RegionCommandHandler {
 
         dispatcher.register(CommandManager.literal("claiminfo")
             .requires(source -> source.isExecutedByPlayer())
-            .executes(RegionCommandHandler::executeClaimInfo)
             .then(CommandManager.literal("start")
-                .executes(RegionCommandHandler::executeClaimInfoStart))
+                .executes(ctx -> {
+                    ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+                    RegionCommandHandler.startTracking(player.getUuid());
+                    player.sendMessage(Text.literal("Now showing claim info when entering new chunks.")
+                        .formatted(Formatting.GREEN), false);
+                    return 1;
+                }))
             .then(CommandManager.literal("stop")
-                .executes(RegionCommandHandler::executeClaimInfoStop)));
+                .executes(ctx -> {
+                    ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+                    RegionCommandHandler.stopTracking(player.getUuid());
+                    player.sendMessage(Text.literal("Stopped showing claim info.").formatted(Formatting.YELLOW), false);
+                    return 1;
+                }))
+            .executes(RegionCommandHandler::executeClaimInfo)); // fallback for just /claiminfo
+
 
 
         dispatcher.register(CommandManager.literal("claimhelp")
@@ -176,35 +195,7 @@ public class RegionCommandHandler {
         }
         return 1;
     }
-
-    private static int executeClaimInfoStart(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
-        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
-        UUID uuid = player.getUuid();
     
-        if (claimInfoTrackingPlayers.contains(uuid)) {
-            player.sendMessage(Text.literal("Claim info tracking is already active.").formatted(Formatting.YELLOW), false);
-        } else {
-            claimInfoTrackingPlayers.add(uuid);
-            lastKnownChunks.put(uuid, player.getChunkPos());
-            player.sendMessage(Text.literal("Claim info tracking started. Walk around to see who owns each chunk.").formatted(Formatting.GREEN), false);
-        }
-        return 1;
-    }
-    
-    private static int executeClaimInfoStop(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
-        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
-        UUID uuid = player.getUuid();
-    
-        if (claimInfoTrackingPlayers.remove(uuid)) {
-            lastKnownChunks.remove(uuid);
-            player.sendMessage(Text.literal("Claim info tracking stopped.").formatted(Formatting.YELLOW), false);
-        } else {
-            player.sendMessage(Text.literal("Claim info tracking wasn't active.").formatted(Formatting.RED), false);
-        }
-        return 1;
-    }
-
-
     private static int executeTrust(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
         ServerPlayerEntity sender = ctx.getSource().getPlayerOrThrow();
         ChunkPos pos = sender.getChunkPos();
