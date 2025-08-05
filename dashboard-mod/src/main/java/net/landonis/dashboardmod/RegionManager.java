@@ -139,8 +139,17 @@ public class RegionManager {
 
     public static String getChunkOwner(ChunkPos pos) {
         ClaimedChunk claim = claimedChunks.get(pos);
-        return (claim != null) ? claim.getOwner().toString() : null;
+        if (claim == null) return null;
+    
+        UUID uuid = claim.getOwner();
+        if (serverReference != null) {
+            Optional<GameProfile> profile = serverReference.getUserCache().getByUuid(uuid);
+            return profile.map(GameProfile::getName).orElse(uuid.toString());
+        } else {
+            return uuid.toString();
+        }
     }
+
 
     public static String getChunkOwnerName(ChunkPos pos, MinecraftServer server) {
         ClaimedChunk claim = claimedChunks.get(pos);
