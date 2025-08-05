@@ -140,7 +140,7 @@ public class RegionCommandHandler {
         source.sendFeedback(() -> Text.literal("/unclaim - Unclaim the current chunk").formatted(Formatting.GREEN), false);
         source.sendFeedback(() -> Text.literal("/claims - List your claimed chunks").formatted(Formatting.GREEN), false);
         source.sendFeedback(() -> Text.literal("/claiminfo - Get info about current chunk").formatted(Formatting.GREEN), false);
-        source.sendFeedback(() -> Text.literal("/claimhelp - Show this help").formatted(Formatting.GREEN), false", false);
+        source.sendFeedback(() -> Text.literal("/claimhelp - Show this help").formatted(Formatting.GREEN), false);
         source.sendFeedback(() -> Text.literal("/trust <player> - Allow player to build in your claim").formatted(Formatting.GREEN), false);
         source.sendFeedback(() -> Text.literal("/untrust <player> - Remove trust from a player").formatted(Formatting.GREEN), false);
         return 1;
