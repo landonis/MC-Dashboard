@@ -1,5 +1,5 @@
 package net.landonis.dashboardmod;
-
+import net.fabricmc.fabric.api.event.player.PlayerMoveCallback;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
@@ -64,6 +64,25 @@ public class DashboardMod implements ModInitializer {
             ServerPlayerEntity player = handler.getPlayer();
             player.sendMessage(Text.literal("§a[Region Protection] Welcome! Use /claim to protect your builds."), false);
         });
+
+        PlayerMoveCallback.EVENT.register((player, from, to) -> {
+            if (!RegionCommandHandler.isTrackingClaimInfo(player.getUuid())) return;
+        
+            ChunkPos fromChunk = new ChunkPos(from);
+            ChunkPos toChunk = new ChunkPos(to);
+        
+            if (!fromChunk.equals(toChunk)) {
+                RegionCommandHandler.updateLastKnownChunk(player.getUuid(), toChunk);
+                String ownerName = RegionManager.getChunkOwner(toChunk);
+                if (ownerName == null) {
+                    player.sendMessage(Text.literal("Chunk unclaimed.").formatted(Formatting.GRAY), false);
+                } else {
+                    player.sendMessage(Text.literal("This chunk is claimed by ").formatted(Formatting.YELLOW)
+                        .append(Text.literal(ownerName).formatted(Formatting.GREEN)), false);
+                }
+            }
+        });
+
 
         // When the server starts, connect the mod to dashboard
         ServerLifecycleEvents.SERVER_STARTED.register((MinecraftServer server) -> {
