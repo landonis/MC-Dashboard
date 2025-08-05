@@ -1,3 +1,5 @@
+//TODO Fix Invites, group membership, remove from groups
+
 package net.landonis.dashboardmod;
 
 import net.landonis.dashboardmod.Group;
@@ -46,6 +48,7 @@ public class GroupCommandHandler {
                     .then(CommandManager.argument("player", GameProfileArgumentType.gameProfile())
                         .then(CommandManager.argument("group", StringArgumentType.word())
                             .executes(GroupCommandHandler::demote))))
+                
             );
         });
     }
