@@ -28,6 +28,7 @@ public class DashboardMod implements ModInitializer {
         RegionManager.loadClaims();
         RegionCommandHandler.registerCommands();
         ChunkTracker.register(); // <-- Handles /claiminfo start/stop
+        GroupCommandHandler.register() // < -- Handles /group commands and permissions
 
         // Block break protection
         PlayerBlockBreakEvents.BEFORE.register((world, player, pos, state, blockEntity) -> {
