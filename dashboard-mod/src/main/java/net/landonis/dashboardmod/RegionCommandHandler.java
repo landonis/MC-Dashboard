@@ -12,6 +12,7 @@ import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.Formatting;
 
 import java.util.Set;
+import java.util.UUID;
 
 public class RegionCommandHandler {
     public static void registerCommands() {
@@ -24,51 +25,38 @@ public class RegionCommandHandler {
         // /claim command
         dispatcher.register(CommandManager.literal("claim")
             .requires(source -> source.isExecutedByPlayer())
-            .executes(ctx -> {
-                return executeClaim(ctx);
-            }));
+            .executes(ctx -> executeClaim(ctx)));
 
         // /unclaim command
         dispatcher.register(CommandManager.literal("unclaim")
             .requires(source -> source.isExecutedByPlayer())
-            .executes(ctx -> {
-                return executeUnclaim(ctx);
-            }));
+            .executes(ctx -> executeUnclaim(ctx)));
 
-        // /claims command - list player's claims
+        // /claims command
         dispatcher.register(CommandManager.literal("claims")
             .requires(source -> source.isExecutedByPlayer())
-            .executes(ctx -> {
-                return executeListClaims(ctx);
-            }));
+            .executes(ctx -> executeListClaims(ctx)));
 
-        // /claiminfo command - info about current chunk
+        // /claiminfo command
         dispatcher.register(CommandManager.literal("claiminfo")
             .requires(source -> source.isExecutedByPlayer())
-            .executes(ctx -> {
-                return executeClaimInfo(ctx);
-            }));
+            .executes(ctx -> executeClaimInfo(ctx)));
 
-        
-        // /trustlist - list trusted players in current chunk
+        // /claimhelp
+        dispatcher.register(CommandManager.literal("claimhelp")
+            .executes(ctx -> executeHelp(ctx)));
+
+        // /trustlist
         dispatcher.register(CommandManager.literal("trustlist")
             .requires(source -> source.isExecutedByPlayer())
-            .executes(ctx -> {
-                return executeTrustList(ctx);
-            }));
-
-        // /claimhelp command - show help
-        dispatcher.register(CommandManager.literal("claimhelp")
-            .executes(ctx -> {
-                return executeHelp(ctx);
-            }));
+            .executes(ctx -> executeTrustList(ctx)));
     }
 
     private static int executeClaim(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
         ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
         ChunkPos pos = player.getChunkPos();
         String playerName = player.getName().getString();
-        
+
         if (RegionManager.isClaimed(pos)) {
             String owner = RegionManager.getChunkOwner(pos);
             if (owner.equals(playerName)) {
@@ -78,8 +66,6 @@ public class RegionCommandHandler {
             }
         } else if (RegionManager.claimChunk(playerName, pos)) {
             player.sendMessage(Text.literal("Chunk claimed successfully! (" + pos.x + ", " + pos.z + ")").formatted(Formatting.GREEN), false);
-            
-            // Notify dashboard if connected
             DashboardWebSocketClient.sendClaimUpdate(playerName, pos, "claimed");
         } else {
             player.sendMessage(Text.literal("Failed to claim chunk.").formatted(Formatting.RED), false);
@@ -91,11 +77,9 @@ public class RegionCommandHandler {
         ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
         ChunkPos pos = player.getChunkPos();
         String playerName = player.getName().getString();
-        
+
         if (RegionManager.unclaimChunk(playerName, pos)) {
             player.sendMessage(Text.literal("Chunk unclaimed successfully. (" + pos.x + ", " + pos.z + ")").formatted(Formatting.YELLOW), false);
-            
-            // Notify dashboard if connected
             DashboardWebSocketClient.sendClaimUpdate(playerName, pos, "unclaimed");
         } else {
             player.sendMessage(Text.literal("You don't own this chunk or it's not claimed.").formatted(Formatting.RED), false);
@@ -107,7 +91,7 @@ public class RegionCommandHandler {
         ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
         String playerName = player.getName().getString();
         Set<ChunkPos> claims = RegionManager.getPlayerClaims(playerName);
-        
+
         if (claims.isEmpty()) {
             player.sendMessage(Text.literal("You don't have any claimed chunks.").formatted(Formatting.YELLOW), false);
         } else {
@@ -122,7 +106,7 @@ public class RegionCommandHandler {
     private static int executeClaimInfo(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
         ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
         ChunkPos pos = player.getChunkPos();
-        
+
         if (RegionManager.isClaimed(pos)) {
             String owner = RegionManager.getChunkOwner(pos);
             player.sendMessage(Text.literal("This chunk is claimed by: ").formatted(Formatting.YELLOW)
@@ -143,14 +127,14 @@ public class RegionCommandHandler {
         source.sendFeedback(() -> Text.literal("/claimhelp - Show this help").formatted(Formatting.GREEN), false);
         source.sendFeedback(() -> Text.literal("/trust <player> - Allow player to build in your claim").formatted(Formatting.GREEN), false);
         source.sendFeedback(() -> Text.literal("/untrust <player> - Remove trust from a player").formatted(Formatting.GREEN), false);
+        source.sendFeedback(() -> Text.literal("/trustlist - Show trusted players in current chunk").formatted(Formatting.GREEN), false);
         return 1;
     }
-}
 
     private static int executeTrustList(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
         ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
         ChunkPos pos = player.getChunkPos();
-        ClaimedChunk claim = RegionManager.getClaim(pos);
+        RegionManager.ClaimedChunk claim = RegionManager.getClaim(pos);
 
         if (claim == null) {
             player.sendMessage(Text.literal("This chunk is not claimed.").formatted(Formatting.RED), false);
@@ -163,9 +147,12 @@ public class RegionCommandHandler {
             } else {
                 player.sendMessage(Text.literal("Trusted players in this chunk:").formatted(Formatting.GREEN), false);
                 for (UUID uuid : trusted) {
-                    player.sendMessage(Text.literal("- " + uuid).formatted(Formatting.GRAY), false);
+                    String name = player.getServer().getUserName(uuid);
+                    if (name == null) name = uuid.toString();
+                    player.sendMessage(Text.literal("- " + name).formatted(Formatting.GRAY), false);
                 }
             }
         }
         return 1;
     }
+}
