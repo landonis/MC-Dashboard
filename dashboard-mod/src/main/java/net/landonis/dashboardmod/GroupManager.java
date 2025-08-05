@@ -36,7 +36,12 @@ public class GroupManager {
             System.err.println("[GroupManager] Failed to save groups: " + e.getMessage());
         }
     }
-
+    public static Group get(String name) {
+        return getGroup(name);
+    }
+    public static boolean exists(String name) {
+        return groupExists(name);
+    }
     public static boolean groupExists(String name) {
         return groups.containsKey(name);
     }
@@ -51,5 +56,30 @@ public class GroupManager {
 
     public static Collection<Group> getAllGroups() {
         return groups.values();
+    }
+        public static void invite(String groupName, UUID playerId) {
+        invites.computeIfAbsent(playerId, k -> new ArrayList<>()).add(groupName);
+    }
+
+    public static boolean accept(String groupName, UUID playerId) {
+        List<String> userInvites = invites.getOrDefault(playerId, new ArrayList<>());
+        if (!userInvites.contains(groupName)) return false;
+
+        Group group = groups.get(groupName);
+        if (group == null) return false;
+
+        group.addMember(playerId);
+        userInvites.remove(groupName);
+        return true;
+    }
+
+    public static boolean decline(String groupName, UUID playerId) {
+        List<String> userInvites = invites.get(playerId);
+        if (userInvites == null) return false;
+        return userInvites.remove(groupName);
+    }
+
+    public static List<String> getInvites(UUID playerId) {
+        return invites.getOrDefault(playerId, Collections.emptyList());
     }
 }
