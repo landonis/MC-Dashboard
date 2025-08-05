@@ -30,9 +30,9 @@ public class GroupManager {
         }
     }
     public static void save() {
-        try {
-            saveGroups();
-        }
+        
+        saveGroups();
+        
     }
     public static void saveGroups() {
         if (dataFile == null) return;
