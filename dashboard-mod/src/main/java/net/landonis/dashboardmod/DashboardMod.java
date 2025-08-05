@@ -39,7 +39,7 @@ public class DashboardMod implements ModInitializer {
                 return false;
             }
 
-            }
+            
             return true;
         });
 
@@ -53,7 +53,7 @@ public class DashboardMod implements ModInitializer {
                 return ActionResult.FAIL;
             }
 
-            }
+            
             return ActionResult.PASS;
         });
 
