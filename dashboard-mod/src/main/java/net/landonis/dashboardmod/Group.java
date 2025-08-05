@@ -6,6 +6,8 @@ public class Group {
     public String name;
     public UUID owner;
     public Map<UUID, String> members = new HashMap<>(); // UUID → role
+    private Map<UUID, String> roles = new HashMap<>();
+
 
     public Group(String name, UUID owner) {
         this.name = name;
@@ -16,6 +18,10 @@ public class Group {
     public boolean isAdmin(UUID uuid) {
         return "admin".equals(roles.get(uuid)) || isOwner(uuid);
     }
+    public boolean isOwner(UUID uuid) {
+        return "owner".equals(roles.get(uuid));
+    }
+
     public boolean hasPermission(UUID uuid, String permission) {
         String role = members.get(uuid);
         if (role == null) return false;
