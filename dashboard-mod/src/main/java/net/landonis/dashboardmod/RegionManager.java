@@ -71,7 +71,10 @@ public class RegionManager {
                     JsonArray arr = el.getAsJsonArray();
                     chunks.add(new ChunkPos(arr.get(0).getAsInt(), arr.get(1).getAsInt()));
                 }
-                claims.put(entry.getKey(), ConcurrentHashMap.newKeySet(chunks));
+                Set<ChunkPos> threadSafeSet = ConcurrentHashMap.newKeySet();
+                threadSafeSet.addAll(chunks);
+                claims.put(entry.getKey(), threadSafeSet); // ✅
+
             }
             System.out.println("[RegionProtector] Loaded " + claims.size() + " player claims");
         } catch (IOException e) {
