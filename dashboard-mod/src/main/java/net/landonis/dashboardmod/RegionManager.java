@@ -1,6 +1,7 @@
 package net.landonis.dashboardmod;
 
 import com.google.gson.*;
+import com.mojang.authlib.GameProfile;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.math.ChunkPos;
@@ -8,20 +9,20 @@ import net.minecraft.util.math.ChunkPos;
 import java.io.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import com.mojang.authlib.GameProfile;
 
 public class RegionManager {
     private static final Map<ChunkPos, ClaimedChunk> claimedChunks = new ConcurrentHashMap<>();
     private static final File CLAIM_FILE = new File("config/dashboardmod/claims.json");
-    private static MinecraftServer server; // server instance for UUID → name
 
-    public static void setServer(MinecraftServer srv) {
-        server = srv;
-    }
+    private static final Map<UUID, String> nameCache = new HashMap<>();
+    private static MinecraftServer serverReference; // Cached server instance
 
     public static void init() {
-        loadClaims();
-        ServerLifecycleEvents.SERVER_STOPPING.register(srv -> saveClaims());
+        ServerLifecycleEvents.SERVER_STARTED.register(server -> {
+            serverReference = server;
+            loadClaims();
+        });
+        ServerLifecycleEvents.SERVER_STOPPING.register(server -> saveClaims());
     }
 
     public static boolean claimChunk(UUID owner, ChunkPos pos) {
@@ -133,9 +134,20 @@ public class RegionManager {
 
     public static String getChunkOwner(ChunkPos pos) {
         ClaimedChunk claim = claimedChunks.get(pos);
-        if (claim == null || server == null) return null;
-        Optional<GameProfile> profile = server.getUserCache().getByUuid(claim.getOwner());
-        return profile.map(GameProfile::getName).orElse(claim.getOwner().toString());
+        return (claim != null) ? claim.getOwner().toString() : null;
+    }
+
+    public static String getChunkOwnerName(ChunkPos pos, MinecraftServer server) {
+        ClaimedChunk claim = claimedChunks.get(pos);
+        if (claim == null) return null;
+        return resolvePlayerName(claim.getOwner(), server);
+    }
+
+    public static String resolvePlayerName(UUID uuid, MinecraftServer server) {
+        return nameCache.computeIfAbsent(uuid, id -> {
+            Optional<GameProfile> profile = server.getUserCache().getByUuid(id);
+            return profile.map(GameProfile::getName).orElse(id.toString());
+        });
     }
 
     public static boolean canEdit(String playerName, ChunkPos pos) {
@@ -145,6 +157,7 @@ public class RegionManager {
         return claim.getOwner().equals(player) || claim.isTrusted(player);
     }
 
+    // ✅ New UUID-based variant (recommended)
     public static Set<ChunkPos> getPlayerClaims(UUID uuid) {
         Set<ChunkPos> result = new HashSet<>();
         for (Map.Entry<ChunkPos, ClaimedChunk> entry : claimedChunks.entrySet()) {
@@ -155,15 +168,18 @@ public class RegionManager {
         return result;
     }
 
+    // ⬅️ Legacy support
+    public static Set<ChunkPos> getPlayerClaims(String playerName) {
+        UUID uuid = UUID.fromString(playerName);
+        return getPlayerClaims(uuid);
+    }
+
+    // ✅ Updated to return names instead of UUIDs
     public static Map<String, Set<ChunkPos>> getAllClaims() {
         Map<String, Set<ChunkPos>> result = new HashMap<>();
         for (Map.Entry<ChunkPos, ClaimedChunk> entry : claimedChunks.entrySet()) {
             UUID uuid = entry.getValue().getOwner();
-            String name = uuid.toString();
-            if (server != null) {
-                Optional<GameProfile> profile = server.getUserCache().getByUuid(uuid);
-                name = profile.map(GameProfile::getName).orElse(uuid.toString());
-            }
+            String name = serverReference != null ? resolvePlayerName(uuid, serverReference) : uuid.toString();
             result.computeIfAbsent(name, k -> new HashSet<>()).add(entry.getKey());
         }
         return result;
