@@ -11,7 +11,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.Formatting;
-
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -148,8 +148,8 @@ public class RegionCommandHandler {
             } else {
                 player.sendMessage(Text.literal("Trusted players in this chunk:").formatted(Formatting.GREEN), false);
                 for (UUID uuid : trusted) {
-                    com.mojang.authlib.GameProfile profile = player.getServer().getUserCache().getByUuid(uuid);
-                    String name = (profile != null) ? profile.getName() : uuid.toString();
+                    Optional<GameProfile> profileOpt = player.getServer().getUserCache().getByUuid(uuid);
+                    String name = profileOpt.map(GameProfile::getName).orElse(uuid.toString());
 
                     if (name == null) name = uuid.toString();
                     player.sendMessage(Text.literal("- " + name).formatted(Formatting.GRAY), false);
