@@ -180,7 +180,7 @@ public class DashboardWebSocketClient {
                             ChunkPos pos = new ChunkPos(x, z);
                             String owner = RegionManager.getChunkOwner(pos);
                             UUID uuid = serverInstance.getUserCache()
-                                .getByName(owner)
+                                .getProfileByName(owner)
                                 .map(GameProfile::getId)
                                 .orElse(null);
                             if (uuid != null && RegionManager.unclaimChunk(uuid, pos)) {
