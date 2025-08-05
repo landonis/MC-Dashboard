@@ -46,7 +46,7 @@ public void onInitialize() {
             if (world.isClient) return ActionResult.PASS;
             ChunkPos chunkPos = new ChunkPos(hitResult.getBlockPos());
             ClaimedChunk claim = RegionManager.getClaim(chunkPos);
-            if (claim != null && !canPlayerBuild(player.getUuid(), claim)) {
+            if (claim != null && !RegionProtection.canPlayerBuild(player.getUuid(), claim)) {
                 player.sendMessage(Text.literal("You can't interact with blocks here.").formatted(Formatting.RED), false);
                 return ActionResult.FAIL;
             }
