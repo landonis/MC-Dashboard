@@ -103,6 +103,24 @@ public class RegionCommandHandler {
         return 1;
     }
 
+    private static int executeListClaims(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        UUID uuid = player.getUuid();
+        List<ChunkPos> claims = RegionManager.getClaims(uuid);
+    
+        if (claims.isEmpty()) {
+            player.sendMessage(Text.literal("You have no claimed chunks.").formatted(Formatting.GRAY), false);
+        } else {
+            player.sendMessage(Text.literal("Your claimed chunks:").formatted(Formatting.GREEN), false);
+            for (ChunkPos pos : claims) {
+                player.sendMessage(Text.literal("- (" + pos.x + ", " + pos.z + ")").formatted(Formatting.GRAY), false);
+            }
+        }
+    
+        return 1;
+    }
+
+    
     private static int executeGroupClaim(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
         ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
         ChunkPos pos = player.getChunkPos();
