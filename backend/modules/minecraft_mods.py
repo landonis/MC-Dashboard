@@ -31,7 +31,7 @@ SYSTEMD_SERVICE_PATH = "/etc/systemd/system"
 MOD_SERVICE = "dashboard_mod.service"
 
 # Tooling
-GRADLE_EXEC = "/opt/dashboard-app/dashboard-mod/gradlew"
+GRADLE_EXEC = "/opt/gradle/gradle-8.8/bin/gradle"
 CHOWN_EXEC = "/usr/bin/chown"
 CHMOD_EXEC = "/usr/bin/chmod"
 SYSTEMCTL_EXEC = "/usr/bin/systemctl"
@@ -296,14 +296,14 @@ def compile_dashboard_mod():
         logger.info(f"Compiling dashboard mod from: {dashboard_mod_dir}")
         
         # Clean previous builds
-        clean_result = run_command(f"{GRADLE_EXEC} clean", cwd=dashboard_mod_dir)
+        clean_result = run_command(f"/usr/bin/sudo {GRADLE_EXEC} clean", cwd=dashboard_mod_dir)
         if not clean_result['success']:
             logger.warning(f"Gradle clean failed: {clean_result['stderr']}")
         
        
         # Build the mod
         
-        build_result = run_command(f"{GRADLE_EXEC} build", cwd=dashboard_mod_dir)
+        build_result = run_command(f"/usr/bin/sudo {GRADLE_EXEC} build", cwd=dashboard_mod_dir)
         if not build_result['success']:
             raise Exception(f"Gradle build failed: {build_result['stderr']}")
         
