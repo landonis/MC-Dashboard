@@ -3,6 +3,7 @@ package net.landonis.dashboardmod;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.authlib.GameProfile;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
@@ -147,7 +148,9 @@ public class RegionCommandHandler {
             } else {
                 player.sendMessage(Text.literal("Trusted players in this chunk:").formatted(Formatting.GREEN), false);
                 for (UUID uuid : trusted) {
-                    String name = player.getServer().getUserName(uuid);
+                    com.mojang.authlib.GameProfile profile = player.getServer().getUserCache().getByUuid(uuid);
+                    String name = (profile != null) ? profile.getName() : uuid.toString();
+
                     if (name == null) name = uuid.toString();
                     player.sendMessage(Text.literal("- " + name).formatted(Formatting.GRAY), false);
                 }
