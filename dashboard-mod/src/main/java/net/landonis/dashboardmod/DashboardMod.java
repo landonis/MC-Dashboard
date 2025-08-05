@@ -67,6 +67,7 @@ public class DashboardMod implements ModInitializer {
 
         // When the server starts, connect the mod to dashboard
         ServerLifecycleEvents.SERVER_STARTED.register((MinecraftServer server) -> {
+            RegionManager.setServer(server);
             DashboardWebSocketClient.connect(server);
             DashboardWebSocketClient.setServerInstance(server);
             DashboardWebSocketClient.sendServerStatus();
