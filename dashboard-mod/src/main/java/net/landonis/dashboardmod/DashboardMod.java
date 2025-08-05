@@ -55,9 +55,11 @@ public void onInitialize() {
 
         AttackBlockCallback.EVENT.register((player, world, hand, pos, direction) -> {
             if (world.isClient) return ActionResult.PASS;
-            if (!RegionProtection.canPlayerBuild(player.getUuid(), pos)) {
+            if (!RegionProtection.canPlayerModifyBlock(player, pos)) {
+                player.sendMessage(Text.literal("You can't attack blocks here.").formatted(Formatting.RED), false);
                 return ActionResult.FAIL;
             }
+
             return ActionResult.PASS;
         });
 
