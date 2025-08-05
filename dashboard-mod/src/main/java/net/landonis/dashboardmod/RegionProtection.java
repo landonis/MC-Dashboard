@@ -34,6 +34,9 @@ public class RegionProtection {
         
         // Chunk is claimed by someone else, deny modification
         String owner = RegionManager.getChunkOwner(chunkPos);
+        if (owner == null) {
+            owner = "unknown player";
+        }
         serverPlayer.sendMessage(
             Text.literal("This area is protected by " + owner + "!").formatted(Formatting.RED), 
             true // Show as action bar message
