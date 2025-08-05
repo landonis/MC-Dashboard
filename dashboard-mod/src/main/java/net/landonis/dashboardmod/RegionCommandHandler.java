@@ -95,7 +95,7 @@ public class RegionCommandHandler {
     private static int executeListClaims(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
         ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
         UUID uuid = player.getUuid();
-        Set<ChunkPos> claims = RegionManager.getPlayerClaims(uuid);
+        Set<ChunkPos> claims = RegionManager.getPlayerClaims(uuid.toString());
 
         if (claims.isEmpty()) {
             player.sendMessage(Text.literal("You don't have any claimed chunks.").formatted(Formatting.YELLOW), false);
@@ -175,7 +175,7 @@ public class RegionCommandHandler {
             return 1;
         }
     
-        List<GameProfile> targets = net.minecraft.command.argument.GameProfileArgumentType.getProfileArgument(ctx, "player");
+        Collection<GameProfile> targets = net.minecraft.command.argument.GameProfileArgumentType.getProfileArgument(ctx, "player");
         for (GameProfile target : targets) {
             UUID targetUUID = target.getId();
             if (targetUUID.equals(sender.getUuid())) {
@@ -208,7 +208,7 @@ public class RegionCommandHandler {
             return 1;
         }
     
-        List<GameProfile> targets = net.minecraft.command.argument.GameProfileArgumentType.getProfileArgument(ctx, "player");
+        Collection<GameProfile> targets = net.minecraft.command.argument.GameProfileArgumentType.getProfileArgument(ctx, "player");
         for (GameProfile target : targets) {
             UUID targetUUID = target.getId();
             if (claim.getTrustedPlayers().contains(targetUUID)) {
