@@ -37,4 +37,12 @@ public class ChunkTracker {
             }
         });
     }
+    public static ChunkPos getLastKnownChunk(UUID uuid) {
+        return lastChunks.get(uuid);
+    }
+    
+    public static void updateLastKnownChunk(UUID uuid, ChunkPos newChunk) {
+        lastChunks.put(uuid, newChunk);
+    }
+
 }
