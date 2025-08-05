@@ -6,9 +6,12 @@ import java.net.http.WebSocket;
 import java.net.http.WebSocket.Listener;
 import java.util.concurrent.CompletionStage;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import net.minecraft.text.Text;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.util.math.ChunkPos;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonArray;
@@ -19,12 +22,16 @@ public class DashboardWebSocketClient {
     public static MinecraftServer serverInstance;
 
     public static void connect(MinecraftServer server) {
-        serverInstance = server;  // Save server instance
+        serverInstance = server;
         HttpClient client = HttpClient.newHttpClient();
 
-        webSocket = client.newWebSocketBuilder()
-                .buildAsync(URI.create("ws://localhost:3020/ws/minecraft"), new WebSocketListener())
-                .join();
+        try {
+            webSocket = client.newWebSocketBuilder()
+                    .buildAsync(URI.create("ws://localhost:3020/ws/minecraft"), new WebSocketListener())
+                    .join();
+        } catch (Exception e) {
+            System.err.println("[DashboardMod] Failed to connect to WebSocket: " + e.getMessage());
+        }
     }
 
     public static void setServerInstance(MinecraftServer server) {
@@ -33,33 +40,27 @@ public class DashboardWebSocketClient {
 
     public static void sendServerStatus() {
         if (webSocket != null && serverInstance != null) {
-            String message = "{\"type\": \"server_status\", \"message\": \"Server started\"}";
-            webSocket.sendText(message, true);
-        } else {
-            System.err.println("[DashboardMod] Cannot send status – WebSocket or server not initialized.");
+            JsonObject message = new JsonObject();
+            message.addProperty("type", "server_status");
+            message.addProperty("message", "Server started with Region Protection");
+            webSocket.sendText(message.toString(), true);
         }
     }
 
     public static void sendMessage(String content) {
-        if (webSocket != null && DashboardWebSocketClient.serverInstance != null) {
-            // Broadcast to players
-            DashboardWebSocketClient.serverInstance.getPlayerManager().broadcast(Text.of("[Dashboard] " + content), false);
+        if (webSocket != null && serverInstance != null) {
+            serverInstance.getPlayerManager().broadcast(Text.of("[Dashboard] " + content), false);
     
-            // Send confirmation via WebSocket
             JsonObject message = new JsonObject();
             message.addProperty("type", "message_sent");
             message.addProperty("content", content);
-    
             webSocket.sendText(message.toString(), true);
-        } else {
-            System.err.println("[DashboardMod] Cannot send message: missing server or websocket.");
         }
     }
 
-
     public static void listPlayers() {
-        if (webSocket != null && DashboardWebSocketClient.serverInstance != null) {
-            List<String> playerNames = DashboardWebSocketClient.serverInstance.getPlayerManager()
+        if (webSocket != null && serverInstance != null) {
+            List<String> playerNames = serverInstance.getPlayerManager()
                 .getPlayerList()
                 .stream()
                 .map(player -> player.getName().getString())
@@ -72,20 +73,51 @@ public class DashboardWebSocketClient {
             for (String name : playerNames) {
                 playersArray.add(name);
             }
-    
-            // Always return the players array, even if it's empty
             response.add("players", playersArray);
             webSocket.sendText(response.toString(), true);
-        } else {
-            System.err.println("[DashboardMod] Cannot list players: missing server or websocket.");
         }
     }
 
+    public static void sendClaimUpdate(String player, ChunkPos pos, String action) {
+        if (webSocket != null) {
+            JsonObject message = new JsonObject();
+            message.addProperty("type", "claim_update");
+            message.addProperty("player", player);
+            message.addProperty("chunkX", pos.x);
+            message.addProperty("chunkZ", pos.z);
+            message.addProperty("action", action);
+            webSocket.sendText(message.toString(), true);
+        }
+    }
+
+    public static void sendClaimsData() {
+        if (webSocket != null) {
+            JsonObject response = new JsonObject();
+            response.addProperty("type", "claims_data");
+            
+            JsonObject claimsObj = new JsonObject();
+            Map<String, Set<ChunkPos>> allClaims = RegionManager.getAllClaims();
+            
+            for (Map.Entry<String, Set<ChunkPos>> entry : allClaims.entrySet()) {
+                JsonArray chunks = new JsonArray();
+                for (ChunkPos pos : entry.getValue()) {
+                    JsonObject chunk = new JsonObject();
+                    chunk.addProperty("x", pos.x);
+                    chunk.addProperty("z", pos.z);
+                    chunks.add(chunk);
+                }
+                claimsObj.add(entry.getKey(), chunks);
+            }
+            
+            response.add("claims", claimsObj);
+            webSocket.sendText(response.toString(), true);
+        }
+    }
     
     private static class WebSocketListener implements Listener {
         @Override
         public void onOpen(WebSocket webSocket) {
-            System.out.println("[DashboardMod] WebSocket connected.");
+            System.out.println("[DashboardMod] WebSocket connected with Region Protection features.");
             webSocket.request(1);
         }
 
@@ -102,18 +134,36 @@ public class DashboardWebSocketClient {
                     case "sendMessage":
                         if (message.has("content")) {
                             String content = message.get("content").getAsString();
-                            DashboardWebSocketClient.sendMessage(content);
+                            sendMessage(content);
                         }
                         break;
                     case "setDay":
-                        if (DashboardWebSocketClient.serverInstance != null) {
-                            DashboardWebSocketClient.serverInstance.getOverworld().setTimeOfDay(1000);
+                        if (serverInstance != null) {
+                            serverInstance.getOverworld().setTimeOfDay(1000);
+                        }
+                        break;
+                    case "setNight":
+                        if (serverInstance != null) {
+                            serverInstance.getOverworld().setTimeOfDay(13000);
                         }
                         break;
                     case "listPlayers":
-                        DashboardWebSocketClient.listPlayers();
+                        listPlayers();
                         break;
-                    // Add more command types here
+                    case "getClaims":
+                        sendClaimsData();
+                        break;
+                    case "adminUnclaim":
+                        if (message.has("chunkX") && message.has("chunkZ")) {
+                            int x = message.get("chunkX").getAsInt();
+                            int z = message.get("chunkZ").getAsInt();
+                            ChunkPos pos = new ChunkPos(x, z);
+                            String owner = RegionManager.getChunkOwner(pos);
+                            if (owner != null && RegionManager.unclaimChunk(owner, pos)) {
+                                sendClaimUpdate("ADMIN", pos, "admin_unclaimed");
+                            }
+                        }
+                        break;
                     default:
                         System.out.println("[DashboardMod] Unknown message type: " + type);
                         break;
@@ -125,14 +175,15 @@ public class DashboardWebSocketClient {
             return null;
         }
         
-
         @Override
         public void onError(WebSocket webSocket, Throwable error) {
             System.err.println("[DashboardMod] WebSocket error: " + error.getMessage());
         }
+
+        @Override
+        public CompletionStage<?> onClose(WebSocket webSocket, int statusCode, String reason) {
+            System.out.println("[DashboardMod] WebSocket closed: " + reason);
+            return null;
+        }
     }
-
-
 }
-
-
