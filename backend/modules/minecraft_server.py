@@ -242,9 +242,16 @@ StandardError=journal
 
 [Install]
 WantedBy=multi-user.target"""
-        run_command(f"echo '{service_content}' | /bin/sudo /usr/bin/tee /etc/systemd/system/minecraft.service > /dev/null")
-
+        temp_path = "/tmp/minecraft.service"
+        with open(temp_path, "w") as f:
+            f.write(service_content)
         
+        run_command(f"/bin/sudo /bin/mv {temp_path} /etc/systemd/system/minecraft.service")
+
+        run_command(f"/bin/sudo {SYSTEMCTL_EXEC} daemon-reexec")
+        run_command(f"/bin/sudo {SYSTEMCTL_EXEC} daemon-reload")
+        run_command(f"/bin/sudo {SYSTEMCTL_EXEC} enable minecraft.service")
+
         result = run_command(f"/bin/sudo {SYSTEMCTL_EXEC} restart minecraft.service")
         
         if result['success']:
@@ -335,7 +342,15 @@ StandardError=journal
 [Install]
 WantedBy=multi-user.target
 """
-        run_command(f"echo '{service_content}' | /bin/sudo /usr/bin/tee /etc/systemd/system/minecraft.service > /dev/null")
+        temp_path = "/tmp/minecraft.service"
+        with open(temp_path, "w") as f:
+            f.write(service_content)
+        
+        run_command(f"/bin/sudo /bin/mv {temp_path} /etc/systemd/system/minecraft.service")
+
+        run_command(f"/bin/sudo {SYSTEMCTL_EXEC} daemon-reexec")
+        run_command(f"/bin/sudo {SYSTEMCTL_EXEC} daemon-reload")
+        run_command(f"/bin/sudo {SYSTEMCTL_EXEC} enable minecraft.service")
 
         
         # Set permissions
