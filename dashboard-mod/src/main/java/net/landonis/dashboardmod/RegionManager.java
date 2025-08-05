@@ -2,22 +2,26 @@ package net.landonis.dashboardmod;
 
 import com.google.gson.*;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.math.ChunkPos;
 
 import java.io.*;
-import java.lang.reflect.Type;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import com.mojang.authlib.GameProfile;
 
 public class RegionManager {
     private static final Map<ChunkPos, ClaimedChunk> claimedChunks = new ConcurrentHashMap<>();
     private static final File CLAIM_FILE = new File("config/dashboardmod/claims.json");
+    private static MinecraftServer server; // server instance for UUID → name
+
+    public static void setServer(MinecraftServer srv) {
+        server = srv;
+    }
 
     public static void init() {
         loadClaims();
-        ServerLifecycleEvents.SERVER_STOPPING.register(server -> saveClaims());
+        ServerLifecycleEvents.SERVER_STOPPING.register(srv -> saveClaims());
     }
 
     public static boolean claimChunk(UUID owner, ChunkPos pos) {
@@ -129,7 +133,9 @@ public class RegionManager {
 
     public static String getChunkOwner(ChunkPos pos) {
         ClaimedChunk claim = claimedChunks.get(pos);
-        return (claim != null) ? claim.getOwner().toString() : null;
+        if (claim == null || server == null) return null;
+        Optional<GameProfile> profile = server.getUserCache().getByUuid(claim.getOwner());
+        return profile.map(GameProfile::getName).orElse(claim.getOwner().toString());
     }
 
     public static boolean canEdit(String playerName, ChunkPos pos) {
@@ -139,8 +145,7 @@ public class RegionManager {
         return claim.getOwner().equals(player) || claim.isTrusted(player);
     }
 
-    public static Set<ChunkPos> getPlayerClaims(String playerName) {
-        UUID uuid = UUID.fromString(playerName);
+    public static Set<ChunkPos> getPlayerClaims(UUID uuid) {
         Set<ChunkPos> result = new HashSet<>();
         for (Map.Entry<ChunkPos, ClaimedChunk> entry : claimedChunks.entrySet()) {
             if (entry.getValue().getOwner().equals(uuid)) {
@@ -151,14 +156,19 @@ public class RegionManager {
     }
 
     public static Map<String, Set<ChunkPos>> getAllClaims() {
-    Map<String, Set<ChunkPos>> result = new HashMap<>();
-    for (Map.Entry<ChunkPos, ClaimedChunk> entry : claimedChunks.entrySet()) {
-        String owner = entry.getValue().getOwner().toString();
-        result.computeIfAbsent(owner, k -> new HashSet<>()).add(entry.getKey());
+        Map<String, Set<ChunkPos>> result = new HashMap<>();
+        for (Map.Entry<ChunkPos, ClaimedChunk> entry : claimedChunks.entrySet()) {
+            UUID uuid = entry.getValue().getOwner();
+            String name = uuid.toString();
+            if (server != null) {
+                Optional<GameProfile> profile = server.getUserCache().getByUuid(uuid);
+                name = profile.map(GameProfile::getName).orElse(uuid.toString());
+            }
+            result.computeIfAbsent(name, k -> new HashSet<>()).add(entry.getKey());
+        }
+        return result;
     }
-    return result;
-}
-    
+
     public static boolean claimChunk(String playerName, ChunkPos pos) {
         return claimChunk(UUID.fromString(playerName), pos);
     }
@@ -166,5 +176,4 @@ public class RegionManager {
     public static boolean unclaimChunk(String playerName, ChunkPos pos) {
         return unclaimChunk(UUID.fromString(playerName), pos);
     }
-
 }
