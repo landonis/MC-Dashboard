@@ -26,7 +26,8 @@ public class DashboardMod implements ModInitializer {
         // Initialize region protection
         RegionManager.loadClaims();
         RegionCommandHandler.registerCommands();
-
+        ChunkTracker.init();
+        
         // Register block break protection
         PlayerBlockBreakEvents.BEFORE.register((world, player, pos, state, blockEntity) -> {
             ChunkPos chunkPos = new ChunkPos(pos);
