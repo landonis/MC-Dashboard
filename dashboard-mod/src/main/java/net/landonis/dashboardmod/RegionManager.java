@@ -1,119 +1,126 @@
+
 package net.landonis.dashboardmod;
 
 import com.google.gson.*;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.minecraft.util.math.ChunkPos;
 
 import java.io.*;
+import java.lang.reflect.Type;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class RegionManager {
-    private static final Map<String, Set<ChunkPos>> claims = new ConcurrentHashMap<>();
-    private static final File CLAIM_FILE = new File("regionprotector_claims.json");
-    
-    // Thread-safe operations
-    private static final Object SAVE_LOCK = new Object();
+    private static final Map<ChunkPos, ClaimedChunk> claimedChunks = new ConcurrentHashMap<>();
+    private static final File CLAIM_FILE = new File("config/dashboardmod/claims.json");
 
-    public static boolean claimChunk(String player, ChunkPos pos) {
-        Set<ChunkPos> playerClaims = claims.computeIfAbsent(player, k -> ConcurrentHashMap.newKeySet());
-        boolean added = playerClaims.add(pos);
-        if (added) {
-            saveClaims(); // Auto-save on claim
-        }
-        return added;
+    public static void init() {
+        loadClaims();
+        ServerLifecycleEvents.SERVER_STOPPING.register(server -> saveClaims());
     }
 
-    public static boolean unclaimChunk(String player, ChunkPos pos) {
-        Set<ChunkPos> owned = claims.get(player);
-        if (owned != null && owned.remove(pos)) {
-            if (owned.isEmpty()) {
-                claims.remove(player); // Clean up empty claim sets
-            }
-            saveClaims(); // Auto-save on unclaim
+    public static boolean claimChunk(UUID owner, ChunkPos pos) {
+        if (claimedChunks.containsKey(pos)) return false;
+        claimedChunks.put(pos, new ClaimedChunk(owner));
+        return true;
+    }
+
+    public static boolean unclaimChunk(UUID owner, ChunkPos pos) {
+        ClaimedChunk existing = claimedChunks.get(pos);
+        if (existing != null && existing.getOwner().equals(owner)) {
+            claimedChunks.remove(pos);
             return true;
         }
         return false;
     }
 
-    public static boolean isClaimed(ChunkPos pos) {
-        return claims.values().stream().anyMatch(set -> set.contains(pos));
-    }
-
-    public static boolean canEdit(String player, ChunkPos pos) {
-        return claims.getOrDefault(player, Collections.emptySet()).contains(pos);
-    }
-
-    public static String getChunkOwner(ChunkPos pos) {
-        for (Map.Entry<String, Set<ChunkPos>> entry : claims.entrySet()) {
-            if (entry.getValue().contains(pos)) {
-                return entry.getKey();
-            }
-        }
-        return null;
-    }
-
-    public static Set<ChunkPos> getPlayerClaims(String player) {
-        return new HashSet<>(claims.getOrDefault(player, Collections.emptySet()));
-    }
-
-    public static Map<String, Set<ChunkPos>> getAllClaims() {
-        return new HashMap<>(claims);
-    }
-
-    public static void loadClaims() {
-        claims.clear(); // Clear existing claims
-        if (!CLAIM_FILE.exists()) return;
-        try (Reader reader = new FileReader(CLAIM_FILE)) {
-            JsonObject obj = JsonParser.parseReader(reader).getAsJsonObject();
-            for (Map.Entry<String, JsonElement> entry : obj.entrySet()) {
-                Set<ChunkPos> chunks = new HashSet<>();
-                for (JsonElement el : entry.getValue().getAsJsonArray()) {
-                    JsonArray arr = el.getAsJsonArray();
-                    chunks.add(new ChunkPos(arr.get(0).getAsInt(), arr.get(1).getAsInt()));
-                }
-                Set<ChunkPos> threadSafeSet = ConcurrentHashMap.newKeySet();
-                threadSafeSet.addAll(chunks);
-                claims.put(entry.getKey(), threadSafeSet); // ✅
-
-            }
-            System.out.println("[RegionProtector] Loaded " + claims.size() + " player claims");
-        } catch (IOException e) {
-            System.err.println("[RegionProtector] Error loading claims: " + e.getMessage());
-        }
+    public static ClaimedChunk getClaim(ChunkPos pos) {
+        return claimedChunks.get(pos);
     }
 
     public static void saveClaims() {
-        synchronized (SAVE_LOCK) {
-            saveClaimsInternal();
+        try {
+            CLAIM_FILE.getParentFile().mkdirs();
+            JsonArray data = new JsonArray();
+            for (Map.Entry<ChunkPos, ClaimedChunk> entry : claimedChunks.entrySet()) {
+                ChunkPos pos = entry.getKey();
+                ClaimedChunk chunk = entry.getValue();
+
+                JsonObject obj = new JsonObject();
+                obj.addProperty("x", pos.x);
+                obj.addProperty("z", pos.z);
+                obj.addProperty("owner", chunk.getOwner().toString());
+
+                JsonArray trusted = new JsonArray();
+                for (UUID uuid : chunk.getTrustedPlayers()) {
+                    trusted.add(uuid.toString());
+                }
+                obj.add("trusted", trusted);
+
+                data.add(obj);
+            }
+
+            try (Writer writer = new FileWriter(CLAIM_FILE)) {
+                new GsonBuilder().setPrettyPrinting().create().toJson(data, writer);
+            }
+
+        } catch (IOException e) {
+            System.err.println("[DashboardMod] Failed to save claims: " + e.getMessage());
         }
     }
-    
-    private static void saveClaimsInternal() {
-        JsonObject out = new JsonObject();
-        for (Map.Entry<String, Set<ChunkPos>> entry : claims.entrySet()) {
-            JsonArray array = new JsonArray();
-            for (ChunkPos pos : entry.getValue()) {
-                JsonArray coords = new JsonArray();
-                coords.add(pos.x);
-                coords.add(pos.z);
-                array.add(coords);
+
+    public static void loadClaims() {
+        if (!CLAIM_FILE.exists()) return;
+        try (Reader reader = new FileReader(CLAIM_FILE)) {
+            JsonArray array = JsonParser.parseReader(reader).getAsJsonArray();
+            for (JsonElement el : array) {
+                JsonObject obj = el.getAsJsonObject();
+                int x = obj.get("x").getAsInt();
+                int z = obj.get("z").getAsInt();
+                UUID owner = UUID.fromString(obj.get("owner").getAsString());
+
+                ClaimedChunk chunk = new ClaimedChunk(owner);
+                if (obj.has("trusted")) {
+                    for (JsonElement uuidEl : obj.getAsJsonArray("trusted")) {
+                        chunk.addTrustedPlayer(UUID.fromString(uuidEl.getAsString()));
+                    }
+                }
+
+                claimedChunks.put(new ChunkPos(x, z), chunk);
             }
-            out.add(entry.getKey(), array);
+        } catch (Exception e) {
+            System.err.println("[DashboardMod] Failed to load claims: " + e.getMessage());
+        }
+    }
+
+    public static class ClaimedChunk {
+        private final UUID owner;
+        private final Set<UUID> trustedPlayers = new HashSet<>();
+
+        public ClaimedChunk(UUID owner) {
+            this.owner = owner;
         }
 
-        try (Writer writer = new FileWriter(CLAIM_FILE)) {
-            new GsonBuilder().setPrettyPrinting().create().toJson(out, writer);
-            System.out.println("[RegionProtector] Saved claims for " + claims.size() + " players to " + CLAIM_FILE.getAbsolutePath());
-        } catch (IOException e) {
-            System.err.println("[RegionProtector] Error saving claims: " + e.getMessage());
+        public UUID getOwner() {
+            return owner;
         }
-    }
-    
-    public static int getTotalClaimsCount() {
-        return claims.values().stream().mapToInt(Set::size).sum();
-    }
-    
-    public static int getPlayerClaimsCount(String player) {
-        return claims.getOrDefault(player, Collections.emptySet()).size();
+
+        public void addTrustedPlayer(UUID uuid) {
+            trustedPlayers.add(uuid);
+        }
+
+        public void removeTrustedPlayer(UUID uuid) {
+            trustedPlayers.remove(uuid);
+        }
+
+        public boolean isTrusted(UUID uuid) {
+            return trustedPlayers.contains(uuid);
+        }
+
+        public Set<UUID> getTrustedPlayers() {
+            return trustedPlayers;
+        }
     }
 }
