@@ -1,12 +1,10 @@
-
 {
   "schemaVersion": 1,
   "id": "dashboardmod",
   "version": "1.0.0",
-  "name": "Dashboard Integration Mod",
-  "description": "Mod to integrate Minecraft server with the dashboard.",
-  "authors": ["YourName"],
-  "contact": {},
+  "name": "Dashboard & Region Protection Mod",
+  "description": "Connects Minecraft server to external dashboard with integrated region protection system",
+  "authors": ["landonis"],
   "license": "MIT",
   "environment": "*",
   "entrypoints": {
@@ -15,8 +13,8 @@
     ]
   },
   "depends": {
-    "fabricloader": ">=0.14.21",
-    "fabric": "*",
-    "minecraft": "1.20.1"
+    "fabricloader": ">=0.15.11",
+    "fabric-api": "*",
+    "minecraft": ">=1.21.1"
   }
 }
