@@ -21,24 +21,26 @@ import net.landonis.dashboardmod.RegionManager.ClaimedChunk;
 
 public class DashboardMod implements ModInitializer {
 
-    @Override
-    public void onInitialize() {
-        System.out.println("[DashboardMod] Initializing with Region Protection...");
+@Override
+public void onInitialize() {
+    System.out.println("[DashboardMod] Initializing with Region Protection...");
 
-        RegionManager.loadClaims();
-        RegionCommandHandler.registerCommands();
-        ChunkTracker.register();
-        GroupCommandHandler.register();
+    // Load and register systems
+    RegionManager.loadClaims();
+    RegionCommandHandler.registerCommands();
+    ChunkTracker.register(); // Handles /claiminfo
+    GroupCommandHandler.register(); // Handles /group commands
 
-        PlayerBlockBreakEvents.BEFORE.register((world, player, pos, state, blockEntity) -> {
-            ChunkPos chunkPos = new ChunkPos(pos);
-            ClaimedChunk claim = RegionManager.getClaim(chunkPos);
-            if (claim != null && !canPlayerBuild(player.getUuid(), claim)) {
-                player.sendMessage(Text.literal("You can't break blocks in this claimed area.").formatted(Formatting.RED), false);
-                return false;
-            }
-            return true;
-        });
+    // Block break protection
+    PlayerBlockBreakEvents.BEFORE.register((world, player, pos, state, blockEntity) -> {
+        ChunkPos chunkPos = new ChunkPos(pos);
+        RegionManager.ClaimedChunk claim = RegionManager.getClaim(chunkPos);
+        if (claim != null && !RegionProtection.canPlayerBuild(player.getUuid(), claim)) {
+            player.sendMessage(Text.literal("You can't break blocks in this claimed area.").formatted(Formatting.RED), false);
+            return false;
+        }
+        return true;
+    });
 
         UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
             if (world.isClient) return ActionResult.PASS;
