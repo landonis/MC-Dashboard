@@ -81,14 +81,4 @@ public void onInitialize() {
             GroupManager.saveGroups();
         });
     }
-
-    private boolean canPlayerBuild(UUID playerUuid, ClaimedChunk claim) {
-        if (claim.isPlayerClaim()) {
-            return claim.getOwner().equals(playerUuid) || claim.isTrusted(playerUuid);
-        } else if (claim.isGroupClaim()) {
-            String groupName = claim.getGroupName();
-            return GroupManager.getGroup(groupName).hasPermission(playerUuid, "build");
-        }
-        return false;
-    }
 }
