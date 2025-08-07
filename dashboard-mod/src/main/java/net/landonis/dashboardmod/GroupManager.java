@@ -49,40 +49,46 @@ public class GroupManager {
         return groupExists(name);
     }
     public static boolean groupExists(String name) {
-        return groups.containsKey(name);
+        return groups.containsKey(name.toLowerCase());
     }
 
     public static Group getGroup(String name) {
-        return groups.get(name);
+        return groups.get(name.toLowerCase());
     }
 
     public static void createGroup(String name, UUID owner) {
-        groups.put(name, new Group(name, owner));
+        groups.put(name, new Group(name.toLowerCase(), owner));
+        save();
+    }
+
+    public static void deleteGroup(String name) {
+        groups.remove(name.toLowerCase()); 
+        save();
     }
 
     public static Collection<Group> getAllGroups() {
         return groups.values();
     }
     public static void invite(String groupName, UUID playerId) {
-        invites.computeIfAbsent(playerId, k -> new ArrayList<>()).add(groupName);
+        invites.computeIfAbsent(playerId, k -> new ArrayList<>()).add(groupName.toLowerCase());
     }
 
     public static boolean accept(String groupName, UUID playerId) {
         List<String> userInvites = invites.getOrDefault(playerId, new ArrayList<>());
-        if (!userInvites.contains(groupName)) return false;
+        if (!userInvites.contains(groupName.toLowerCase())) return false;
 
         Group group = groups.get(groupName);
         if (group == null) return false;
 
         group.addMember(playerId, "member");
-        userInvites.remove(groupName);
+        userInvites.remove(groupName.toLowerCase());
         return true;
     }
 
     public static boolean decline(String groupName, UUID playerId) {
         List<String> userInvites = invites.get(playerId);
         if (userInvites == null) return false;
-        return userInvites.remove(groupName);
+        return userInvites.remove(groupName.toLowerCase());
     }
 
     public static List<String> getInvites(UUID playerId) {
