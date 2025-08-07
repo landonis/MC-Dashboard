@@ -15,7 +15,7 @@ public class Group {
     }
 
     public boolean isAdmin(UUID uuid) {
-        String role = membres.get(uuid);
+        String role = members.get(uuid);
         return "admin".equals(role) || isOwner(uuid);
     }
     public boolean isOwner(UUID uuid) {
