@@ -28,6 +28,10 @@ public class GroupCommandHandler {
                 .then(CommandManager.literal("create")
                     .then(CommandManager.argument("name", StringArgumentType.word())
                         .executes(GroupCommandHandler::create)))
+                .then(CommandManager.literal("delete")
+                    .then(CommandManager.argument("name", StringArgumentType.word())
+                        .executes(GroupCommandHandler::delete)))
+                                
                 .then(CommandManager.literal("invite")
                     .then(CommandManager.argument("player", GameProfileArgumentType.gameProfile())
                         .then(CommandManager.argument("group", StringArgumentType.word())
@@ -67,6 +71,29 @@ public class GroupCommandHandler {
         return 1;
     }
 
+    private static int delete(CommandContext<ServerCommandSource> ctx) {
+        ServerPlayerEntity player = getPlayer(ctx);
+        String name = StringArgumentType.getString(ctx, "name");
+    
+        Group group = GroupManager.get(name);
+        if (group == null) {
+            player.sendMessage(Text.literal("Group not found.").formatted(Formatting.RED), false);
+            return 0;
+        }
+    
+        // Only the owner can delete
+        if (!group.isOwner(player.getUuid())) {
+            player.sendMessage(Text.literal("Only the group owner can delete this group.").formatted(Formatting.RED), false);
+            return 0;
+        }
+    
+        // Remove the group
+        GroupManager.deleteGroup(name);
+    
+        player.sendMessage(Text.literal("Group '" + name + "' has been deleted.").formatted(Formatting.GREEN), false);
+        return 1;
+    }
+    
     private static int invite(CommandContext<ServerCommandSource> ctx) {
         ServerPlayerEntity sender = getPlayer(ctx);
         String groupName = StringArgumentType.getString(ctx, "group");
