@@ -6,7 +6,6 @@ public class Group {
     public String name;
     public UUID owner;
     public Map<UUID, String> members = new HashMap<>(); // UUID → role
-    private Map<UUID, String> roles = new HashMap<>();
 
 
     public Group(String name, UUID owner) {
@@ -16,7 +15,8 @@ public class Group {
     }
 
     public boolean isAdmin(UUID uuid) {
-        return "admin".equals(roles.get(uuid)) || isOwner(uuid);
+        String role = membres.get(uuid);
+        return "admin".equals(role) || isOwner(uuid);
     }
     public boolean isOwner(UUID uuid) {
             return this.owner.equals(uuid);
@@ -55,32 +55,32 @@ public class Group {
         return members.get(uuid);
     }
     public boolean canPromote(UUID actor, UUID target) {
-        String actorRole = roles.get(actor);
-        String targetRole = roles.get(target);
+        String actorRole = members.get(actor);
+        String targetRole = members.get(target);
         return isOwner(actor) || ("admin".equals(actorRole) && !"owner".equals(targetRole));
     }
     
     public void promote(UUID target) {
-        String current = roles.getOrDefault(target, "member");
+        String current = members.getOrDefault(target, "member");
         if ("member".equals(current)) {
-            roles.put(target, "builder");
+            members.put(target, "builder");
         } else if ("builder".equals(current)) {
-            roles.put(target, "admin");
+            members.put(target, "admin");
         }
     }
     
     public boolean canDemote(UUID actor, UUID target) {
-        String actorRole = roles.get(actor);
-        String targetRole = roles.get(target);
+        String actorRole = members.get(actor);
+        String targetRole = members.get(target);
         return isOwner(actor) || ("admin".equals(actorRole) && "builder".equals(targetRole));
     }
     
     public void demote(UUID target) {
-        String current = roles.getOrDefault(target, "member");
+        String current = members.getOrDefault(target, "member");
         if ("admin".equals(current)) {
-            roles.put(target, "builder");
+            members.put(target, "builder");
         } else if ("builder".equals(current)) {
-            roles.put(target, "member");
+            members.put(target, "member");
         }
     }
 
