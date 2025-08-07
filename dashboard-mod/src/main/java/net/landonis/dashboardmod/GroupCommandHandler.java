@@ -31,7 +31,11 @@ public class GroupCommandHandler {
                 .then(CommandManager.literal("delete")
                     .then(CommandManager.argument("name", StringArgumentType.word())
                         .executes(GroupCommandHandler::delete)))
-                                
+                .then(CommandManager.literal("list")
+                    .executes(GroupCommandHandler::listGroups))
+                .then(CommandManager.argument("group", StringArgumentType.word())
+                    .then(CommandManager.literal("list")
+                        .executes(GroupCommandHandler::listMembers)))
                 .then(CommandManager.literal("invite")
                     .then(CommandManager.argument("player", GameProfileArgumentType.gameProfile())
                         .then(CommandManager.argument("group", StringArgumentType.word())
@@ -243,7 +247,83 @@ public class GroupCommandHandler {
         GroupManager.save();
         return 1;
     }
-
+    private static int listGroups(CommandContext<ServerCommandSource> ctx) {
+        ServerPlayerEntity player = getPlayer(ctx);
+    
+        Collection<Group> all = GroupManager.getAllGroups();
+        if (all.isEmpty()) {
+            player.sendMessage(Text.literal("No groups exist yet.").formatted(Formatting.GRAY), false);
+            return 1;
+        }
+    
+        player.sendMessage(Text.literal("Groups (" + all.size() + "):").formatted(Formatting.GREEN), false);
+        for (Group g : all) {
+            // Show owner short + member count
+            int count = g.members.size();
+            String ownerShort = g.owner.toString().substring(0, 8);
+            player.sendMessage(Text.literal("- " + g.name + " ")
+                .append(Text.literal("(owner: " + ownerShort + ", members: " + count + ")")
+                .formatted(Formatting.YELLOW)), false);
+        }
+        return 1;
+    }
+    
+    private static int listMembers(CommandContext<ServerCommandSource> ctx) {
+        ServerPlayerEntity sender = getPlayer(ctx);
+        String groupName = StringArgumentType.getString(ctx, "group");
+    
+        Group group = GroupManager.get(groupName); // assumes GroupManager does lowercase lookups
+        if (group == null) {
+            sender.sendMessage(Text.literal("Group not found.").formatted(Formatting.RED), false);
+            return 0;
+        }
+    
+        if (group.members.isEmpty()) {
+            sender.sendMessage(Text.literal("Group '" + group.name + "' has no members.").formatted(Formatting.GRAY), false);
+            return 1;
+        }
+    
+        sender.sendMessage(Text.literal("Members of '" + group.name + "':").formatted(Formatting.GREEN), false);
+    
+        MinecraftServer server = ctx.getSource().getServer();
+        for (Map.Entry<UUID, String> e : group.members.entrySet()) {
+            UUID id = e.getKey();
+            String role = e.getValue();
+    
+            String displayName = resolveName(server, id);
+            Formatting roleColor = switch (role) {
+                case "owner" -> Formatting.GOLD;
+                case "admin" -> Formatting.RED;
+                case "builder" -> Formatting.AQUA;
+                case "member" -> Formatting.WHITE;
+                case "viewer" -> Formatting.GRAY;
+                default -> Formatting.DARK_GRAY;
+            };
+    
+            sender.sendMessage(
+                Text.literal("- " + displayName + " ")
+                    .append(Text.literal("(" + role + ")").formatted(roleColor)),
+                false
+            );
+        }
+        return 1;
+    }
+    
+    // Resolve a pretty name for a UUID (online > cached > UUID)
+    private static String resolveName(MinecraftServer server, UUID uuid) {
+        ServerPlayerEntity online = server.getPlayerManager().getPlayer(uuid);
+        if (online != null) return online.getGameProfile().getName();
+    
+        // User cache lookup (falls back to UUID if unknown)
+        try {
+            var userCache = server.getUserCache();
+            if (userCache != null) {
+                var gp = userCache.getByUuid(uuid);
+                if (gp.isPresent()) return gp.get().getName();
+            }
+        } catch (Exception ignored) {}
+        return uuid.toString();
+    }
     private static ServerPlayerEntity getPlayer(CommandContext<ServerCommandSource> ctx) {
         try {
             return ctx.getSource().getPlayerOrThrow();
