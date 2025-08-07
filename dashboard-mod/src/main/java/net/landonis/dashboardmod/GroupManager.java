@@ -18,7 +18,7 @@ public class GroupManager {
     private static final Map<UUID, List<String>> invites = new HashMap<>();
 
     private static String norm(String s) {
-        return s == null ? "" : s.toLowerCase(Locale.ROOT);
+        return s == null ? "" : s.toLowerCase(java.util.Locale.ROOT);
     }
 
     public static void load(MinecraftServer server) {
