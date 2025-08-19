@@ -31,6 +31,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Security constants
+MAX_LOGIN_ATTEMPTS = int(os.getenv('MAX_LOGIN_ATTEMPTS', 5))
+LOCKOUT_HOURS = int(os.getenv('LOCKOUT_HOURS', 1))
 
 def create_app():
     app = Flask(__name__)
@@ -84,13 +87,48 @@ def create_app():
             password = data.get('password')
             if not username or not password:
                 return jsonify({'error': 'Username and password required'}), 400
+            
             user = User.query.filter_by(username=username).first()
-            if user and user.check_password(password):
+            if not user:
+                return jsonify({'error': 'Invalid credentials'}), 401
+            
+            # Check if account is locked
+            if user.is_locked():
+                locked_until_str = user.locked_until.strftime('%Y-%m-%d %H:%M:%S UTC')
+                logger.warning(f"Login attempt on locked account: {username}")
+                return jsonify({
+                    'error': f'Account locked until {locked_until_str} due to too many failed login attempts'
+                }), 403
+            
+            # Check password
+            if user.check_password(password):
+                # Successful login - reset failed attempts
+                user.reset_failed_attempts()
+                db.session.commit()
+                
                 access_token = create_access_token(identity=str(user.id))
                 response = jsonify({'msg': 'Login successful'})
                 set_access_cookies(response, access_token)
+                logger.info(f"Successful login for user: {username}")
                 return response
-            return jsonify({'error': 'Invalid credentials'}), 401
+            else:
+                # Failed login - increment attempts and potentially lock
+                user.increment_failed_attempts(MAX_LOGIN_ATTEMPTS, LOCKOUT_HOURS)
+                db.session.commit()
+                
+                if user.is_locked():
+                    locked_until_str = user.locked_until.strftime('%Y-%m-%d %H:%M:%S UTC')
+                    logger.warning(f"Account locked due to failed attempts: {username}")
+                    return jsonify({
+                        'error': f'Too many failed attempts. Account locked until {locked_until_str}'
+                    }), 403
+                else:
+                    remaining_attempts = MAX_LOGIN_ATTEMPTS - user.failed_login_attempts
+                    logger.warning(f"Failed login attempt for user: {username} ({user.failed_login_attempts}/{MAX_LOGIN_ATTEMPTS})")
+                    return jsonify({
+                        'error': f'Invalid credentials. {remaining_attempts} attempts remaining before lockout'
+                    }), 401
+                    
         except Exception as e:
             logger.error(f"Login error: {str(e)}")
             return jsonify({'error': 'Login failed'}), 500
