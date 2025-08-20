@@ -153,7 +153,7 @@ public class MovementAntiCheat {
      * Check for fly hacks
      */
     private boolean checkFlyViolation(ServerPlayerEntity player, PlayerMovementData data, double verticalDistance) {
-        if (player.getAbilities().allowFlying || player.isFallFlying() || isInWater(player)) {
+        if (player.getAbilities().allowFlying || player.isGliding() || isInWater(player)) {
             return false; // Creative mode, elytra, or water
         }
         
@@ -192,7 +192,7 @@ public class MovementAntiCheat {
      * Check for phase/noclip violations
      */
     private boolean checkPhaseViolation(ServerPlayerEntity player, Vec3d fromPos, Vec3d toPos) {
-        ServerWorld world = player.getServerWorld();
+        ServerWorld world = player.getWorld();
         
         // Simple ray-cast check for solid blocks between positions
         Vec3d direction = toPos.subtract(fromPos);
@@ -225,7 +225,7 @@ public class MovementAntiCheat {
      * Check for Jesus/water walking
      */
     private boolean checkJesusViolation(ServerPlayerEntity player, Vec3d position) {
-        ServerWorld world = player.getServerWorld();
+        ServerWorld world = player.getWorld();
         BlockPos pos = BlockPos.ofFloored(position);
         BlockPos below = pos.down();
         
@@ -331,7 +331,7 @@ public class MovementAntiCheat {
     
     private boolean wouldCollide(ServerPlayerEntity player, Vec3d position) {
         // Simplified collision check - you might want to use Minecraft's collision system
-        return !player.getServerWorld().isSpaceEmpty(player, player.getBoundingBox().offset(position.subtract(player.getPos())));
+        return !player.getWorld().isSpaceEmpty(player, player.getBoundingBox().offset(position.subtract(player.getPos())));
     }
     
     /**
