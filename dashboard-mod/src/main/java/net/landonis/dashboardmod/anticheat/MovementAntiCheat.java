@@ -146,7 +146,6 @@ public class MovementAntiCheat {
 
         if (player.isClimbing()) return false;
 
-        if (player.isOnGround() && verticalDistance <= player.stepHeight + 0.15) return false;
 
         if (verticalDistance > maxVertical * LAG_COMPENSATION_MULTIPLIER && !player.isOnGround()) {
             recordViolation(data, player, String.format("Fly hack: upward %.3f", verticalDistance));
