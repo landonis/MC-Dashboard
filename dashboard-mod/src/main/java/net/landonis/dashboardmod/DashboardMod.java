@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import net.landonis.dashboardmod.RegionManager.ClaimedChunk;
 import net.landonis.dashboardmod.anticheat.AntiCheatHelper;
+import net.landonis.dashboardmod.anticheat.AntiCheatCommands;
 
 public class DashboardMod implements ModInitializer {
     
@@ -41,8 +42,8 @@ public class DashboardMod implements ModInitializer {
         ChunkTracker.register(); // Handles /claiminfo
         GroupCommandHandler.register(); // Handles /group commands
         
-        // Register anticheat commands
-        AntiCheatCommands.register();
+        // Register anticheat commands - FIXED: Use initialize() instead of register()
+        AntiCheatCommands.initialize();
         
         // Block break protection (enhanced with anticheat)
         PlayerBlockBreakEvents.BEFORE.register((world, player, pos, state, blockEntity) -> {
@@ -65,16 +66,21 @@ public class DashboardMod implements ModInitializer {
         UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
             if (world.isClient) return ActionResult.PASS;
             
+            // FIXED: Safe cast to ServerPlayerEntity
+            if (!(player instanceof ServerPlayerEntity serverPlayer)) {
+                return ActionResult.PASS; // Skip for client-side players
+            }
+            
             // ANTICHEAT CHECK FIRST - prevents rapid placement exploits
-            if (!AntiCheatHelper.canPlaceBlock(player, hitResult.getBlockPos())) {
+            if (!AntiCheatHelper.canPlaceBlock(serverPlayer, hitResult.getBlockPos())) {
                 return ActionResult.FAIL; // Block the action due to rate limiting
             }
             
             // EXISTING REGION PROTECTION LOGIC
             ChunkPos chunkPos = new ChunkPos(hitResult.getBlockPos());
             ClaimedChunk claim = RegionManager.getClaim(chunkPos);
-            if (claim != null && !RegionProtection.canPlayerBuild(player.getUuid(), claim)) {
-                player.sendMessage(Text.literal("You can't interact with blocks here.").formatted(Formatting.RED), false);
+            if (claim != null && !RegionProtection.canPlayerBuild(serverPlayer.getUuid(), claim)) {
+                serverPlayer.sendMessage(Text.literal("You can't interact with blocks here.").formatted(Formatting.RED), false);
                 return ActionResult.FAIL;
             }
             return ActionResult.PASS;
@@ -83,8 +89,14 @@ public class DashboardMod implements ModInitializer {
         // Block attack protection (existing logic)
         AttackBlockCallback.EVENT.register((player, world, hand, pos, direction) -> {
             if (world.isClient) return ActionResult.PASS;
-            if (!RegionProtection.canPlayerModifyBlock(player, pos)) {
-                player.sendMessage(Text.literal("You can't attack blocks here.").formatted(Formatting.RED), false);
+            
+            // FIXED: Safe cast to ServerPlayerEntity
+            if (!(player instanceof ServerPlayerEntity serverPlayer)) {
+                return ActionResult.PASS; // Skip for client-side players
+            }
+            
+            if (!RegionProtection.canPlayerModifyBlock(serverPlayer, pos)) {
+                serverPlayer.sendMessage(Text.literal("You can't attack blocks here.").formatted(Formatting.RED), false);
                 return ActionResult.FAIL;
             }
             return ActionResult.PASS;
@@ -92,8 +104,13 @@ public class DashboardMod implements ModInitializer {
         
         // NEW: Entity attack protection with anticheat
         AttackEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
+            // FIXED: Safe cast to ServerPlayerEntity
+            if (!(player instanceof ServerPlayerEntity serverPlayer)) {
+                return ActionResult.PASS; // Skip for client-side players
+            }
+            
             // ANTICHEAT CHECK - prevents rapid attack exploits
-            if (!AntiCheatHelper.canAttack(player)) {
+            if (!AntiCheatHelper.canAttack(serverPlayer)) {
                 return ActionResult.FAIL; // Block the action due to rate limiting
             }
             
@@ -104,8 +121,13 @@ public class DashboardMod implements ModInitializer {
         
         // NEW: Item use protection with anticheat
         UseItemCallback.EVENT.register((player, world, hand) -> {
+            // FIXED: Safe cast to ServerPlayerEntity
+            if (!(player instanceof ServerPlayerEntity serverPlayer)) {
+                return ActionResult.PASS; // Skip for client-side players
+            }
+            
             // ANTICHEAT CHECK - prevents rapid item use exploits
-            if (!AntiCheatHelper.canUseItem(player)) {
+            if (!AntiCheatHelper.canUseItem(serverPlayer)) {
                 return ActionResult.FAIL; // Block the action due to rate limiting
             }
             
