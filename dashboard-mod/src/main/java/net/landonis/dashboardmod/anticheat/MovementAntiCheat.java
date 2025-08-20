@@ -18,10 +18,10 @@ import java.util.concurrent.ConcurrentHashMap;
 public class MovementAntiCheat {
 
     // Physics constants
-    private static final double MAX_WALK_SPEED = 0.35;
-    private static final double MAX_SPRINT_SPEED = 0.45;
+    private static final double MAX_WALK_SPEED = 0.5;
+    private static final double MAX_SPRINT_SPEED = 0.6;
     private static final double MAX_FLY_SPEED = 0.15;
-    private static final double MAX_VERTICAL_SPEED = 0.6;
+    private static final double MAX_VERTICAL_SPEED = 0.8;
     private static final double TELEPORT_THRESHOLD = 8.0;
     private static final int POSITION_HISTORY_SIZE = 10;
     private static final long VIOLATION_RESET_TIME = 300_000; // 5 minutes
