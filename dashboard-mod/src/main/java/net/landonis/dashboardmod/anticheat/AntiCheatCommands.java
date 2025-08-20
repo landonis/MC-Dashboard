@@ -1,4 +1,4 @@
-package com.example.anticheat;
+package net.landonis.dashboardmod.anticheat;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
