@@ -105,21 +105,18 @@ public class MovementAntiCheat {
         return true;
     }
 
-    /**
-     * Maximum step height in front of the player
-     */
     private double getStepHeight(ServerPlayerEntity player) {
         ServerWorld world = player.getWorld();
         BlockPos pos = player.getBlockPos();
-        // Check the block in front
         BlockPos front = pos.offset(player.getHorizontalFacing());
         Block block = world.getBlockState(front).getBlock();
-
+    
         if (block == Blocks.AIR) return 0.0;
-        if (block == Blocks.SLAB || block == Blocks.STONE_SLAB) return 0.5;
-        if (block == Blocks.STAIRS || block == Blocks.OAK_STAIRS) return 0.5;
-        return 1.0; // full block step
+        if (block instanceof net.minecraft.block.SlabBlock) return 0.5;
+        if (block instanceof net.minecraft.block.StairsBlock) return 0.5;
+        return 1.0; // full block
     }
+
 
     private boolean checkSpeedViolation(ServerPlayerEntity player, PlayerMovementData data,
                                        double horizontalDistance, double verticalDistance) {
