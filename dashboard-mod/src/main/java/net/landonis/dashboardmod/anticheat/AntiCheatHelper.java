@@ -1,4 +1,4 @@
-package com.example.anticheat;
+package net.landonis.dashboardmod.anticheat;
 
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.math.BlockPos;
