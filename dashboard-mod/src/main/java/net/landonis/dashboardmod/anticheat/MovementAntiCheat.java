@@ -130,8 +130,10 @@ public class MovementAntiCheat {
     private boolean checkFlyViolation(ServerPlayerEntity player, PlayerMovementData data, double verticalDistance) {
         if (player.getAbilities().allowFlying || player.isGliding() || isInWater(player)) return false;
 
-        double maxVertical = MAX_VERTICAL_SPEED + player.stepHeight;
+        double maxVertical = MAX_VERTICAL_SPEED + player.getStepHeight();
 
+        if (player.isOnGround() && verticalDistance <= player.getStepHeight() + 0.15) return false;
+        
         if (player.hasStatusEffect(StatusEffects.JUMP_BOOST)) {
             int amplifier = player.getStatusEffect(StatusEffects.JUMP_BOOST).getAmplifier() + 1;
             maxVertical += 0.1 * amplifier;
