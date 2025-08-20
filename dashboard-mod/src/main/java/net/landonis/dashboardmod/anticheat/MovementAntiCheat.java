@@ -130,10 +130,15 @@ public class MovementAntiCheat {
     private boolean checkFlyViolation(ServerPlayerEntity player, PlayerMovementData data, double verticalDistance) {
         if (player.getAbilities().allowFlying || player.isGliding() || isInWater(player)) return false;
 
-        double maxVertical = MAX_VERTICAL_SPEED + player.getHeight();
-
-        if (player.isOnGround() && verticalDistance <= player.getHeight() + 0.15) return false;
+        // Assume default step height
+        double stepHeight = 0.6;
         
+        // Compute maximum vertical movement including step height
+        double maxVertical = MAX_VERTICAL_SPEED + stepHeight;
+        
+        // Allow movement if on ground and within step height + small tolerance
+        if (player.isOnGround() && verticalDistance <= stepHeight + 0.15) return false;
+
         if (player.hasStatusEffect(StatusEffects.JUMP_BOOST)) {
             int amplifier = player.getStatusEffect(StatusEffects.JUMP_BOOST).getAmplifier() + 1;
             maxVertical += 0.1 * amplifier;
