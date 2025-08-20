@@ -13,22 +13,20 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Movement AntiCheat System for Minecraft Fabric
  * Detects and prevents movement-based exploits
- * Now tuned to handle stairs, slabs, and climbing safely
  */
 public class MovementAntiCheat {
 
     // Physics constants
-    private static final double MAX_WALK_SPEED = 0.5;
-    private static final double MAX_SPRINT_SPEED = 0.6;
+    private static final double MAX_WALK_SPEED = 0.32;
+    private static final double MAX_SPRINT_SPEED = 0.43;
     private static final double MAX_FLY_SPEED = 0.15;
-    private static final double MAX_VERTICAL_SPEED = 0.8;
+    private static final double MAX_VERTICAL_SPEED = 0.48;
     private static final double TELEPORT_THRESHOLD = 8.0;
     private static final int POSITION_HISTORY_SIZE = 10;
-    private static final long VIOLATION_RESET_TIME = 300_000; // 5 minutes
+    private static final long VIOLATION_RESET_TIME = 300000;
     private static final int MAX_VIOLATIONS_BEFORE_KICK = 20;
     private static final double LAG_COMPENSATION_MULTIPLIER = 1.2;
 
-    // Player tracking
     private final Map<UUID, PlayerMovementData> playerData = new ConcurrentHashMap<>();
 
     private static class PlayerMovementData {
@@ -55,7 +53,6 @@ public class MovementAntiCheat {
         }
     }
 
-    // -------------------- MAIN MOVEMENT VALIDATION --------------------
     public boolean validateMovement(ServerPlayerEntity player, Vec3d fromPos, Vec3d toPos) {
         UUID playerId = player.getUuid();
         PlayerMovementData data = getPlayerData(playerId);
@@ -73,7 +70,6 @@ public class MovementAntiCheat {
 
         addPositionSnapshot(data, toPos, currentTime, player.isOnGround(), player.getYaw());
 
-        // Teleport checks
         if (distance > TELEPORT_THRESHOLD) {
             if (isLegitTeleport(player, fromPos, toPos)) {
                 data.lastValidPosition = toPos;
@@ -84,7 +80,6 @@ public class MovementAntiCheat {
             }
         }
 
-        // Movement violations
         if (checkSpeedViolation(player, data, horizontalDistance)) return false;
         if (checkFlyViolation(player, data, verticalDistance)) return false;
         if (checkPhaseViolation(player, fromPos, toPos)) return false;
@@ -92,17 +87,13 @@ public class MovementAntiCheat {
 
         data.lastValidPosition = toPos;
         data.lastVelocity = movement;
-        updateAirTime(data, player.isOnGround(), player);
+        updateAirTime(data, player.isOnGround());
 
         return true;
     }
 
-    // -------------------- SPEED CHECK --------------------
     private boolean checkSpeedViolation(ServerPlayerEntity player, PlayerMovementData data, double horizontalDistance) {
         double maxSpeed = getMaxAllowedSpeed(player) * LAG_COMPENSATION_MULTIPLIER;
-
-        // Allow slight horizontal leniency when climbing
-        if (player.isClimbing() || isOnStairsOrSlab(player)) maxSpeed *= 1.1;
 
         if (horizontalDistance > maxSpeed) {
             recordViolation(data, player, String.format("Speed hack: %.3f > %.3f", horizontalDistance, maxSpeed));
@@ -116,6 +107,7 @@ public class MovementAntiCheat {
                         .mapToLong(s -> s.timestamp)
                         .filter(t -> System.currentTimeMillis() - t < 5000)
                         .count();
+
                 if (recentViolations < 2) {
                     recordViolation(data, player, String.format("Consistent high speed: %.3f", avgSpeed));
                     return true;
@@ -126,50 +118,40 @@ public class MovementAntiCheat {
         return false;
     }
 
-    // -------------------- FLY CHECK (TUNED) --------------------
     private boolean checkFlyViolation(ServerPlayerEntity player, PlayerMovementData data, double verticalDistance) {
         if (player.getAbilities().allowFlying || player.isGliding() || isInWater(player)) return false;
 
-        // Assume default step height
-        double stepHeight = 0.6;
-        
-        // Compute maximum vertical movement including step height
+        double stepHeight = 0.65; // maximum vanilla step height + tolerance
         double maxVertical = MAX_VERTICAL_SPEED + stepHeight;
-        
-        // Allow movement if on ground and within step height + small tolerance
+
+        // Allow normal stair/slab movement
         if (player.isOnGround() && verticalDistance <= stepHeight + 0.15) return false;
 
-        if (player.hasStatusEffect(StatusEffects.JUMP_BOOST)) {
-            int amplifier = player.getStatusEffect(StatusEffects.JUMP_BOOST).getAmplifier() + 1;
-            maxVertical += 0.1 * amplifier;
-        }
-
-        if (player.isClimbing()) return false;
-
-
-        if (verticalDistance > maxVertical * LAG_COMPENSATION_MULTIPLIER && !player.isOnGround()) {
-            recordViolation(data, player, String.format("Fly hack: upward %.3f", verticalDistance));
-            return true;
-        }
-
-        if (data.airTime > 30 && Math.abs(verticalDistance) < 0.05 && !player.isOnGround()) {
-            if (!isInWater(player) && !hasLevitation(player) && !player.isClimbing() && !isOnStairsOrSlab(player)) {
-                recordViolation(data, player, "Hovering in air");
+        // Only flag vertical violations if player is in the air
+        if (!player.isOnGround()) {
+            if (verticalDistance > maxVertical * LAG_COMPENSATION_MULTIPLIER) {
+                recordViolation(data, player, String.format("Fly hack: upward %.3f", verticalDistance));
                 return true;
             }
-        }
 
-        if (data.airTime > 60 && verticalDistance > -0.05) {
-            if (!isInWater(player) && !hasSlowFalling(player) && !hasLevitation(player)) {
-                recordViolation(data, player, "Anti-gravity");
-                return true;
+            if (data.airTime > 30 && Math.abs(verticalDistance) < 0.02) {
+                if (!isInWater(player) && !hasLevitation(player) && !player.isClimbing()) {
+                    recordViolation(data, player, "Hovering in air");
+                    return true;
+                }
+            }
+
+            if (data.airTime > 60 && verticalDistance > -0.05) {
+                if (!isInWater(player) && !hasSlowFalling(player) && !hasLevitation(player)) {
+                    recordViolation(data, player, "Anti-gravity");
+                    return true;
+                }
             }
         }
 
         return false;
     }
 
-    // -------------------- PHASE CHECK --------------------
     private boolean checkPhaseViolation(ServerPlayerEntity player, Vec3d fromPos, Vec3d toPos) {
         ServerWorld world = player.getWorld();
         Vec3d direction = toPos.subtract(fromPos);
@@ -185,6 +167,7 @@ public class MovementAntiCheat {
 
                 if (!world.getBlockState(blockPos).isAir() &&
                     !world.getBlockState(blockPos).getBlock().equals(Blocks.WATER)) {
+
                     if (wouldCollide(player, checkPos)) {
                         recordViolation(getPlayerData(player.getUuid()), player,
                                 "Phase/NoClip through " + world.getBlockState(blockPos).getBlock());
@@ -197,14 +180,13 @@ public class MovementAntiCheat {
         return false;
     }
 
-    // -------------------- JESUS/WATER CHECK --------------------
     private boolean checkJesusViolation(ServerPlayerEntity player, Vec3d position) {
         ServerWorld world = player.getWorld();
         BlockPos pos = BlockPos.ofFloored(position);
         BlockPos below = pos.down();
 
         if (world.getBlockState(below).getBlock().equals(Blocks.WATER) &&
-            player.isOnGround() && !player.getAbilities().allowFlying) {
+                player.isOnGround() && !player.getAbilities().allowFlying) {
             recordViolation(getPlayerData(player.getUuid()), player, "Jesus/Water walking");
             return true;
         }
@@ -212,7 +194,6 @@ public class MovementAntiCheat {
         return false;
     }
 
-    // -------------------- HELPER METHODS --------------------
     private double getMaxAllowedSpeed(ServerPlayerEntity player) {
         double baseSpeed = player.isSprinting() ? MAX_SPRINT_SPEED : MAX_WALK_SPEED;
 
@@ -220,10 +201,12 @@ public class MovementAntiCheat {
             int amplifier = player.getStatusEffect(StatusEffects.SPEED).getAmplifier() + 1;
             baseSpeed *= (1.0 + 0.2 * amplifier);
         }
+
         if (player.hasStatusEffect(StatusEffects.SLOWNESS)) {
             int amplifier = player.getStatusEffect(StatusEffects.SLOWNESS).getAmplifier() + 1;
             baseSpeed *= (1.0 - 0.15 * amplifier);
         }
+
         if (player.isCreative() || player.isSpectator()) {
             baseSpeed = player.getAbilities().getFlySpeed() * 20;
         }
@@ -252,11 +235,13 @@ public class MovementAntiCheat {
 
     private void addPositionSnapshot(PlayerMovementData data, Vec3d pos, long time, boolean onGround, double yaw) {
         data.positionHistory.offer(new MovementSnapshot(pos, time, onGround, yaw));
-        while (data.positionHistory.size() > POSITION_HISTORY_SIZE) data.positionHistory.poll();
+        while (data.positionHistory.size() > POSITION_HISTORY_SIZE) {
+            data.positionHistory.poll();
+        }
     }
 
-    private void updateAirTime(PlayerMovementData data, boolean onGround, ServerPlayerEntity player) {
-        if (onGround || player.isClimbing() || isOnStairsOrSlab(player)) {
+    private void updateAirTime(PlayerMovementData data, boolean onGround) {
+        if (onGround) {
             data.airTime = 0;
             data.wasOnGround = true;
         } else {
@@ -281,17 +266,13 @@ public class MovementAntiCheat {
         return !player.getWorld().isSpaceEmpty(player, player.getBoundingBox().offset(position.subtract(player.getPos())));
     }
 
-    private boolean isOnStairsOrSlab(ServerPlayerEntity player) {
-        BlockPos pos = BlockPos.ofFloored(player.getPos().add(0, -0.1, 0));
-        Block block = player.getWorld().getBlockState(pos).getBlock();
-        return block instanceof net.minecraft.block.StairsBlock || block instanceof net.minecraft.block.SlabBlock;
-    }
-
     private void recordViolation(PlayerMovementData data, ServerPlayerEntity player, String reason) {
         data.violationCount++;
         data.lastViolation = System.currentTimeMillis();
-        System.out.println("[AntiCheat] Movement violation by " + player.getName().getString() + ": " +
-                reason + " (Total: " + data.violationCount + ")");
+
+        System.out.println("[AntiCheat] Movement violation by " + player.getName().getString() +
+                ": " + reason + " (Total: " + data.violationCount + ")");
+
         remediate(player, data, reason);
     }
 
@@ -303,9 +284,11 @@ public class MovementAntiCheat {
         if (data.violationCount == 5) {
             player.sendMessage(net.minecraft.text.Text.of("§6[AntiCheat] §eMovement irregularities detected"));
         }
+
         if (data.violationCount == 10) {
             player.sendMessage(net.minecraft.text.Text.of("§c[AntiCheat] §cSuspicious movement patterns detected"));
         }
+
         if (data.violationCount > MAX_VIOLATIONS_BEFORE_KICK) {
             System.out.println("[AntiCheat] Player " + player.getName().getString() + " should be kicked for violations");
         }
@@ -339,7 +322,7 @@ public class MovementAntiCheat {
 
         playerData.entrySet().removeIf(entry ->
                 currentTime - entry.getValue().lastViolation > VIOLATION_RESET_TIME * 2 &&
-                entry.getValue().violationCount == 0
+                        entry.getValue().violationCount == 0
         );
     }
 
