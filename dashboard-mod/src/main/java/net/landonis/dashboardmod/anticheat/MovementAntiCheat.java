@@ -141,17 +141,19 @@ public class MovementAntiCheat {
         ServerWorld world = player.getWorld();
         BlockPos pos = BlockPos.ofFloored(player.getPos());
         double maxHeight = 0.6; // default single-step
-
+    
         for (int i = 1; i <= 3; i++) {
             BlockPos check = pos.up(i);
-            Block block = world.getBlockState(check).getBlock();
-            if (!block.isAir() && block != Blocks.WATER) {
+            var state = world.getBlockState(check); // BlockState
+            Block block = state.getBlock();
+            if (!state.isAir() && block != Blocks.WATER) {
                 maxHeight = i * 0.5; // 0.5 blocks per step
                 break;
             }
         }
         return maxHeight;
     }
+
 
     private boolean checkPhaseViolation(ServerPlayerEntity player, Vec3d fromPos, Vec3d toPos) {
         ServerWorld world = player.getWorld();
