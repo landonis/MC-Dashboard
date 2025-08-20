@@ -20,12 +20,12 @@ public class MovementAntiCheat {
     private static final double MAX_WALK_SPEED = 0.32;
     private static final double MAX_SPRINT_SPEED = 0.43;
     private static final double MAX_FLY_SPEED = 0.15;
-    private static final double MAX_VERTICAL_SPEED = 0.48;
+    private static final double MAX_VERTICAL_SPEED = 0.8;
     private static final double TELEPORT_THRESHOLD = 8.0;
     private static final int POSITION_HISTORY_SIZE = 10;
     private static final long VIOLATION_RESET_TIME = 300_000;
     private static final int MAX_VIOLATIONS_BEFORE_KICK = 20;
-    private static final double LAG_COMPENSATION_MULTIPLIER = 1.2;
+    private static final double LAG_COMPENSATION_MULTIPLIER = 1.3;
 
     private final Map<UUID, PlayerMovementData> playerData = new ConcurrentHashMap<>();
 
@@ -85,7 +85,7 @@ public class MovementAntiCheat {
 
         // Step-aware vertical movement
         double stepHeight = getStepHeight(player);
-        if (!player.getAbilities().allowFlying && verticalDistance <= stepHeight + 0.15) {
+        if (!player.getAbilities().allowFlying && verticalDistance <= stepHeight + 0.3) {
             // Allow normal step/jump movement without flag
             data.lastValidPosition = toPos;
             data.lastVelocity = movement;
@@ -113,7 +113,7 @@ public class MovementAntiCheat {
     
         if (block == Blocks.AIR) return 0.0;
         if (block instanceof net.minecraft.block.SlabBlock) return 0.5;
-        if (block instanceof net.minecraft.block.StairsBlock) return 0.5;
+        if (block instanceof net.minecraft.block.StairsBlock) return 1;
         return 1.0; // full block
     }
 
