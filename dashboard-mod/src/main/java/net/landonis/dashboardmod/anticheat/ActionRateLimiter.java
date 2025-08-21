@@ -11,15 +11,15 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class ActionRateLimiter {
     
-    // Configuration constants
-    private static final long BLOCK_BREAK_COOLDOWN = 50; // ms between block breaks
-    private static final long BLOCK_PLACE_COOLDOWN = 100; // ms between block placements
-    private static final long ITEM_USE_COOLDOWN = 250; // ms between item usage
-    private static final long ATTACK_COOLDOWN = 500; // ms between attacks
-    private static final int MAX_ACTIONS_PER_SECOND = 20;
+    // Much more lenient configuration constants
+    private static final long BLOCK_BREAK_COOLDOWN = 25; // ms between block breaks (was 50)
+    private static final long BLOCK_PLACE_COOLDOWN = 50; // ms between block placements (was 100)
+    private static final long ITEM_USE_COOLDOWN = 100; // ms between item usage (was 250)
+    private static final long ATTACK_COOLDOWN = 200; // ms between attacks (was 500)
+    private static final int MAX_ACTIONS_PER_SECOND = 35; // Increased from 20
     private static final long CLEANUP_INTERVAL = 300000; // 5 minutes
-    private static final int MAX_VIOLATIONS_BEFORE_KICK = 10;
-    private static final long VIOLATION_DECAY_TIME = 60000; // 1 minute
+    private static final int MAX_VIOLATIONS_BEFORE_KICK = 15; // Increased from 10
+    private static final long VIOLATION_DECAY_TIME = 30000; // 30 seconds (was 1 minute)
     
     // Player tracking data
     private final Map<UUID, PlayerActionData> playerData = new ConcurrentHashMap<>();
@@ -48,13 +48,13 @@ public class ActionRateLimiter {
         
         // Check cooldown
         if (currentTime - data.lastBlockBreak < BLOCK_BREAK_COOLDOWN) {
-            recordViolation(data, "Block break too fast");
+            recordViolation(data, player, "Block break too fast: " + (currentTime - data.lastBlockBreak) + "ms");
             return false;
         }
         
         // Check general action rate
         if (!checkActionRate(data, currentTime)) {
-            recordViolation(data, "Too many actions per second");
+            recordViolation(data, player, "Too many actions per second: " + countRecentActions(data, currentTime));
             return false;
         }
         
@@ -75,12 +75,12 @@ public class ActionRateLimiter {
         long currentTime = System.currentTimeMillis();
         
         if (currentTime - data.lastBlockPlace < BLOCK_PLACE_COOLDOWN) {
-            recordViolation(data, "Block place too fast");
+            recordViolation(data, player, "Block place too fast: " + (currentTime - data.lastBlockPlace) + "ms");
             return false;
         }
         
         if (!checkActionRate(data, currentTime)) {
-            recordViolation(data, "Too many actions per second");
+            recordViolation(data, player, "Too many actions per second: " + countRecentActions(data, currentTime));
             return false;
         }
         
@@ -100,12 +100,12 @@ public class ActionRateLimiter {
         long currentTime = System.currentTimeMillis();
         
         if (currentTime - data.lastItemUse < ITEM_USE_COOLDOWN) {
-            recordViolation(data, "Item use too fast");
+            recordViolation(data, player, "Item use too fast: " + (currentTime - data.lastItemUse) + "ms");
             return false;
         }
         
         if (!checkActionRate(data, currentTime)) {
-            recordViolation(data, "Too many actions per second");
+            recordViolation(data, player, "Too many actions per second: " + countRecentActions(data, currentTime));
             return false;
         }
         
@@ -125,12 +125,12 @@ public class ActionRateLimiter {
         long currentTime = System.currentTimeMillis();
         
         if (currentTime - data.lastAttack < ATTACK_COOLDOWN) {
-            recordViolation(data, "Attack too fast");
+            recordViolation(data, player, "Attack too fast: " + (currentTime - data.lastAttack) + "ms");
             return false;
         }
         
         if (!checkActionRate(data, currentTime)) {
-            recordViolation(data, "Too many actions per second");
+            recordViolation(data, player, "Too many actions per second: " + countRecentActions(data, currentTime));
             return false;
         }
         
@@ -152,7 +152,13 @@ public class ActionRateLimiter {
      * Check if the player is exceeding the general action rate limit
      */
     private boolean checkActionRate(PlayerActionData data, long currentTime) {
-        // Count actions in the last second - avoid stream for performance
+        return countRecentActions(data, currentTime) < MAX_ACTIONS_PER_SECOND;
+    }
+    
+    /**
+     * Count recent actions in the last second
+     */
+    private int countRecentActions(PlayerActionData data, long currentTime) {
         long oneSecondAgo = currentTime - 1000;
         int recentActionCount = 0;
         for (Long actionTime : data.recentActions) {
@@ -160,8 +166,7 @@ public class ActionRateLimiter {
                 recentActionCount++;
             }
         }
-        
-        return recentActionCount < MAX_ACTIONS_PER_SECOND;
+        return recentActionCount;
     }
     
     /**
@@ -177,20 +182,37 @@ public class ActionRateLimiter {
     /**
      * Record a violation for the player
      */
-    private void recordViolation(PlayerActionData data, String reason) {
+    private void recordViolation(PlayerActionData data, ServerPlayerEntity player, String reason) {
         data.violationCount++;
         data.lastViolation = System.currentTimeMillis();
         
-        // Use proper logger instead of System.out.println
-        // Logger logger = LoggerFactory.getLogger(ActionRateLimiter.class);
-        // logger.warn("[AntiCheat] Rate limit violation: {} (Total violations: {})", reason, data.violationCount);
-        System.out.println("[AntiCheat] Rate limit violation: " + reason + 
-                          " (Total violations: " + data.violationCount + ")");
+        try {
+            System.out.println("[AntiCheat] Rate limit violation by " + player.getName().getString() + 
+                              ": " + reason + " (Total violations: " + data.violationCount + ")");
+        } catch (Exception e) {
+            System.out.println("[AntiCheat] Rate limit violation: " + reason + 
+                              " (Total violations: " + data.violationCount + ")");
+        }
+        
+        // Send feedback to player
+        try {
+            if (data.violationCount == 3) {
+                player.sendMessage(net.minecraft.text.Text.of("§6[AntiCheat] §eSlowing down actions to prevent violations"));
+            } else if (data.violationCount == 8) {
+                player.sendMessage(net.minecraft.text.Text.of("§c[AntiCheat] §cToo many rapid actions detected"));
+            }
+        } catch (Exception e) {
+            // Ignore message sending errors
+        }
         
         // Implement escalating punishments based on violation count
         if (data.violationCount > MAX_VIOLATIONS_BEFORE_KICK) {
-            // This should be handled by the calling code with access to the player object
-            System.out.println("[AntiCheat] Player exceeded violation threshold");
+            try {
+                System.out.println("[AntiCheat] Player " + player.getName().getString() + 
+                                 " exceeded rate limit violation threshold");
+            } catch (Exception e) {
+                System.out.println("[AntiCheat] Player exceeded rate limit violation threshold");
+            }
         }
     }
     
