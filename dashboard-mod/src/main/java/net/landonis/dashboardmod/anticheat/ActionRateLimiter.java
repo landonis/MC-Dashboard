@@ -35,10 +35,15 @@ public class ActionRateLimiter {
     private static final int MAX_SEQUENTIAL_FEEDS = 25; // Allow feeding many animals
     private static final long FEED_SEQUENCE_TIMEOUT = 10000; // 10 seconds for feeding session
     
-    // Violation thresholds (more forgiving)
-    private static final int MAX_VIOLATIONS_BEFORE_KICK = 25; // Higher threshold
-    private static final long VIOLATION_DECAY_TIME = 20000; // 20 seconds faster decay
+    // Violation thresholds (much more forgiving with burst tolerance)
+    private static final int MAX_VIOLATIONS_BEFORE_KICK = 50; // Much higher threshold
+    private static final long VIOLATION_DECAY_TIME = 15000; // 15 seconds faster decay
     private static final long CLEANUP_INTERVAL = 300000; // 5 minutes
+    
+    // Burst tolerance - allow some 0ms intervals in rapid legitimate actions
+    private static final int MAX_INSTANT_ACTIONS_PER_BURST = 8; // Allow 8 instant actions in a burst
+    private static final long BURST_WINDOW = 2000; // 2 second window
+    private static final int VIOLATION_THRESHOLD_FOR_WARNING = 5; // Only warn after many violations
     
     // Suspicious pattern detection (target actual impossible cheats only)
     private static final int SUSPICIOUS_RAPID_ACTIONS = 100; // 100 actions in 3 seconds = clearly impossible
@@ -80,6 +85,11 @@ public class ActionRateLimiter {
         private long lastViolation = 0;
         private int suspiciousPatternCount = 0;
         
+        // Burst tolerance tracking
+        private final long[] instantActionTimes = new long[10]; // Track last 10 instant actions
+        private int instantActionIndex = 0;
+        private int instantActionCount = 0;
+        
         void addAction(long timestamp) {
             recentActionTimes[actionIndex] = timestamp;
             actionIndex = (actionIndex + 1) % recentActionTimes.length;
@@ -100,6 +110,25 @@ public class ActionRateLimiter {
                     break;
                 }
                 index = (index - 1 + recentActionTimes.length) % recentActionTimes.length;
+            }
+            return count;
+        }
+        
+        void addInstantAction(long timestamp) {
+            instantActionTimes[instantActionIndex] = timestamp;
+            instantActionIndex = (instantActionIndex + 1) % instantActionTimes.length;
+            if (instantActionCount < instantActionTimes.length) {
+                instantActionCount++;
+            }
+        }
+        
+        int countInstantActionsInWindow(long currentTime, long windowMs) {
+            long cutoff = currentTime - windowMs;
+            int count = 0;
+            for (int i = 0; i < instantActionCount; i++) {
+                if (instantActionTimes[i] >= cutoff) {
+                    count++;
+                }
             }
             return count;
         }
