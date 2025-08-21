@@ -22,27 +22,27 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class ActionRateLimiter {
     
-    // Base cooldowns (realistic for legitimate gameplay)
-    private static final long BLOCK_BREAK_COOLDOWN = 50; // 50ms = 20 blocks/second max
-    private static final long BLOCK_PLACE_COOLDOWN = 75; // 75ms = 13 blocks/second max  
-    private static final long ITEM_USE_COOLDOWN = 100; // 100ms = 10 items/second max
-    private static final long ATTACK_COOLDOWN = 75; // Much more lenient - 75ms = 13 attacks/second max
-    private static final int MAX_ACTIONS_PER_SECOND = 25; // More conservative overall limit
+    // Base cooldowns (very lenient to account for natural timing variations)
+    private static final long BLOCK_BREAK_COOLDOWN = 8; // 8ms = very fast but achievable
+    private static final long BLOCK_PLACE_COOLDOWN = 15; // 15ms for placing
+    private static final long ITEM_USE_COOLDOWN = 25; // 25ms for items
+    private static final long ATTACK_COOLDOWN = 75; // 75ms for attacks
+    private static final int MAX_ACTIONS_PER_SECOND = 30; // 30 actions/second overall limit
     
-    // Context-specific allowances (account for 0-4ms natural timing)
-    private static final long DOOR_INTERACTION_COOLDOWN = 50; // Allow reasonable door speed
-    private static final long ANIMAL_FEEDING_COOLDOWN = 100; // 100ms between feeds is very fast but fair
-    private static final int MAX_SEQUENTIAL_FEEDS = 20; // Allow feeding more animals
-    private static final long FEED_SEQUENCE_TIMEOUT = 8000; // 8 seconds for feeding session
+    // Context-specific allowances (account for 0-5ms natural timing)
+    private static final long DOOR_INTERACTION_COOLDOWN = 5; // Very permissive for doors
+    private static final long ANIMAL_FEEDING_COOLDOWN = 15; // Fast animal feeding allowed
+    private static final int MAX_SEQUENTIAL_FEEDS = 25; // Allow feeding many animals
+    private static final long FEED_SEQUENCE_TIMEOUT = 10000; // 10 seconds for feeding session
     
     // Violation thresholds (more forgiving)
     private static final int MAX_VIOLATIONS_BEFORE_KICK = 25; // Higher threshold
     private static final long VIOLATION_DECAY_TIME = 20000; // 20 seconds faster decay
     private static final long CLEANUP_INTERVAL = 300000; // 5 minutes
     
-    // Suspicious pattern detection (target actual cheats, not fast legitimate play)
-    private static final int SUSPICIOUS_RAPID_ACTIONS = 60; // 60 actions in 3 seconds = clearly impossible
-    private static final long PATTERN_DETECTION_WINDOW = 3000; // 3 seconds
+    // Suspicious pattern detection (target actual impossible cheats only)
+    private static final int SUSPICIOUS_RAPID_ACTIONS = 100; // 100 actions in 3 seconds = clearly impossible
+    private static final long PATTERN_DETECTION_WINDOW = 2000; // 2 seconds
     
     // Player tracking data
     private final Map<UUID, PlayerActionData> playerData = new ConcurrentHashMap<>();
@@ -129,17 +129,17 @@ public class ActionRateLimiter {
         long cooldown = BLOCK_BREAK_COOLDOWN;
         
         // Much more lenient cooldowns for all tools to account for efficiency enchantments
-        // Since we can't easily detect efficiency, we'll just be more permissive
-        cooldown = 20; // Reduced from 50ms to 20ms to handle high efficiency tools
+        // and natural 0-5ms timing variations that are completely normal
+        cooldown = 8; // Very permissive base cooldown
         
         // Allow faster breaking for certain blocks (like crops)
         if (block != null && isHarvestableBlock(block)) {
-            cooldown = 10; // Very fast for crops
+            cooldown = 3; // Very fast for crops
         }
         
         // Special case for instant break blocks (like grass, flowers)
         if (block != null && isInstantBreakBlock(block)) {
-            cooldown = 5; // Very fast for instant break blocks
+            cooldown = 1; // Almost instant for instant break blocks
         }
         
         // Check cooldown
