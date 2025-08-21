@@ -82,7 +82,7 @@ public class MovementAntiCheat {
             Box playerBox = player.getBoundingBox().offset(pos.subtract(player.getPos()));
             
             // Check blocks in 3x3x3 area around player
-            BlockPos center = new BlockPos(pos);
+            BlockPos center = BlockPos.ofFloored(pos.x, pos.y, pos.z);
             boolean solidGround = false;
             boolean water = false;
             boolean lava = false;
