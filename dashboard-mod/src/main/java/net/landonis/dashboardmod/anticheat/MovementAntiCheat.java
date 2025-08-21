@@ -1,4 +1,75 @@
-package net.landonis.dashboardmod.anticheat;
+private double getMaxAllowedSpeed(ServerPlayerEntity player) {
+        double baseSpeed = player.isSprinting() ? MAX_SPRINT_SPEED : MAX_WALK_SPEED;
+
+        // Status effect modifications with safety checks
+        try {
+            if (player.hasStatusEffect(StatusEffects.SPEED)) {
+                int amplifier = player.getStatusEffect(StatusEffects.SPEED).getAmplifier() + 1;
+                baseSpeed *= (1.0 + 0.2 * Math.min(amplifier, 10)); // Cap amplifier
+            }
+            if (player.hasStatusEffect(StatusEffects.SLOWNESS)) {
+                int amplifier = player.getStatusEffect(StatusEffects.SLOWNESS).getAmplifier() + 1;
+                baseSpeed *= (1.0 - 0.15 * Math.min(amplifier, 10)); // Cap amplifier
+            }
+        } catch (Exception e) {
+            // Fallback if status effect queries fail
+        }
+
+        if    private double getMaxJumpHeight(ServerPlayerEntity player, Vec3d startPos) {
+        ServerWorld world = player.getWorld();
+        BlockPos startBlock = BlockPos.ofFloored(startPos.x, startPos.y, startPos.z);
+        
+        // Base jump height - normal player can jump ~1.25 blocks
+        double maxHeight = 1.3;
+        
+        if (player.hasStatusEffect(StatusEffects.JUMP_BOOST)) {
+            int amplifier = player.getStatusEffect(StatusEffects.JUMP_BOOST).getAmplifier() + 1;
+            maxHeight += 0.5 * amplifier; // Each level adds ~0.5 blocks
+        }
+        
+        // Check for barriers around starting position that should limit jump height
+        boolean hasBarrier = false;
+        double barrierHeight = 0;
+        
+        // Check 3x3 area around starting position
+        for (int x = -1; x <= 1; x++) {
+            for (int z = -1; z <= 1; z++) {
+                BlockPos checkPos = startBlock.add(x, 0, z);
+                Block block = world.getBlockState(checkPos).getBlock();
+                
+                // Fences and walls - should limit jump to ~1.5 blocks
+                if (block instanceof FenceBlock || block instanceof WallBlock) {
+                    hasBarrier = true;
+                    barrierHeight = Math.max(barrierHeight, 1.5);
+                }
+                
+                // Check for trapdoors on top of blocks
+                BlockPos abovePos = checkPos.up();
+                Block aboveBlock = world.getBlockState(abovePos).getBlock();
+                if (aboveBlock instanceof net.minecraft.block.TrapdoorBlock) {
+                    BlockState trapdoorState = world.getBlockState(abovePos);
+                    try {
+                        boolean isOpen = trapdoorState.get(net.minecraft.block.TrapdoorBlock.OPEN);
+                        boolean isTop = trapdoorState.get(net.minecraft.block.TrapdoorBlock.HALF) == net.minecraft.block.enums.BlockHalf.TOP;
+                        
+                        if (!isOpen && isTop) {
+                            hasBarrier = true;
+                            barrierHeight = Math.max(barrierHeight, 1.9); // Block + trapdoor
+                        }
+                    } catch (Exception e) {
+                        // Ignore property errors
+                    }
+                }
+            }
+        }
+        
+        // If there's a barrier, limit jump height to slightly above it
+        if (hasBarrier) {
+            maxHeight = Math.min(maxHeight, barrierHeight + 0.2);
+        }
+        
+        return maxHeight;
+    }package net.landonis.dashboardmod.anticheat;
 
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -214,17 +285,16 @@ public class MovementAntiCheat {
             }
         }
 
-        // Enhanced validation with block context - only check if significant movement
-        if (distance > 0.05) { // Only validate significant movements
+        // Enhanced validation with block context - simplified approach
+        if (distance > 0.15) { // Only validate movements worth checking
             if (checkSpeedViolation(player, data, horizontalDistance, verticalDistance, fromContext, toContext)) return false;
-            if (checkFlyViolation(player, data, verticalDistance, fromContext, toContext)) return false;
-            if (distance > 0.2 && checkPhaseViolation(player, fromPos, toPos, fromContext, toContext)) return false;
+            if (checkVerticalViolation(player, data, verticalDistance, fromContext, toContext)) return false;
+            if (distance > 0.8 && checkPhaseViolation(player, fromPos, toPos, fromContext, toContext)) return false;
         }
         
-        // Less strict checks for all movements
-        if (distance > 0.1) {
+        // Simple checks for basic exploits
+        if (distance > 0.3) {
             if (checkJesusViolation(player, toPos, toContext)) return false;
-            if (checkObstructionViolation(player, data, movement, fromContext, toContext)) return false;
         }
 
         data.lastValidPosition = toPos;
@@ -238,80 +308,73 @@ public class MovementAntiCheat {
     private boolean checkSpeedViolation(ServerPlayerEntity player, PlayerMovementData data,
                                        double horizontalDistance, double verticalDistance,
                                        BlockContext fromContext, BlockContext toContext) {
-        double maxSpeed = getMaxAllowedSpeed(player, toContext) * LAG_COMPENSATION_MULTIPLIER * 1.5; // More lenient
-
-        // Reduce speed limit if moving through obstructions
-        if (toContext.hasObstructions && !player.getAbilities().allowFlying) {
-            maxSpeed *= 0.9; // Less restrictive when obstructed
-        }
-
-        // Allow higher speed when falling or on ice
-        if (verticalDistance < -0.1) {
-            maxSpeed *= 1.2; // Allow some extra horizontal speed when falling
-        }
+        // Simple speed checking - just max speed + generous wiggle room
+        double maxSpeed = getMaxAllowedSpeed(player) * 2.5; // Very generous for stepping/slabs
         
-        if (isOnIce(toContext)) {
-            maxSpeed *= 1.4; // Ice allows faster movement
-        }
-
         if (horizontalDistance > maxSpeed) {
-            recordViolation(data, player, String.format("Speed hack: %.3f > %.3f (context: %s)", 
-                horizontalDistance, maxSpeed, getContextDescription(toContext)));
+            recordViolation(data, player, String.format("Speed hack: %.3f > %.3f", 
+                horizontalDistance, maxSpeed));
             return true;
         }
 
-        // Enhanced consistency checking with block context
-        if (data.positionHistory.size() >= 3) {
-            double avgSpeed = calculateAverageSpeed(data, 3);
-            if (avgSpeed > maxSpeed * 0.85 && horizontalDistance > maxSpeed * 0.85) {
-                // Only flag if not in a legitimate high-speed context
-                if (!toContext.inWater && !isOnIce(toContext) && !toContext.hasClimbable) {
-                    recordViolation(data, player, String.format("Consistent high speed: %.3f (avg: %.3f, max: %.3f)", 
-                        horizontalDistance, avgSpeed, maxSpeed));
-                    return true;
-                }
+        // Only check consistency for obviously fast movement
+        if (data.positionHistory.size() >= 5 && horizontalDistance > maxSpeed * 0.6) {
+            double avgSpeed = calculateAverageSpeed(data, 5);
+            if (avgSpeed > maxSpeed * 0.7) {
+                recordViolation(data, player, String.format("Consistent high speed: %.3f", avgSpeed));
+                return true;
             }
         }
 
         return false;
     }
 
-    private boolean checkFlyViolation(ServerPlayerEntity player, PlayerMovementData data,
-                                      double verticalDistance, BlockContext fromContext, BlockContext toContext) {
+    private boolean checkVerticalViolation(ServerPlayerEntity player, PlayerMovementData data,
+                                           double verticalDistance, BlockContext fromContext, BlockContext toContext) {
         if (player.getAbilities().allowFlying || player.isGliding()) return false;
         if (toContext.inWater || toContext.inLava || toContext.hasClimbable) return false;
 
-        double maxVertical = MAX_VERTICAL_SPEED;
+        // Track jumping for height validation
+        if (!data.wasOnGround && player.isOnGround()) {
+            // Just landed - reset tracking
+            data.airTime = 0;
+            return false;
+        }
+        
+        if (data.wasOnGround && !player.isOnGround() && verticalDistance > 0) {
+            // Just started jumping - track the starting height
+            if (data.lastValidPosition != null) {
+                // We'll check max jump height based on barriers, not step-by-step movement
+                double maxJumpHeight = getMaxJumpHeight(player, data.lastValidPosition);
+                
+                // Only check if they've been in air for a while and gained significant height
+                if (data.airTime > 5) {
+                    double totalHeightGain = toContext.position.y - data.lastValidPosition.y;
+                    if (totalHeightGain > maxJumpHeight) {
+                        recordViolation(data, player, String.format("Jump too high: %.2f > %.2f blocks", 
+                            totalHeightGain, maxJumpHeight));
+                        return true;
+                    }
+                }
+            }
+        }
+
+        // Simple fly check - only for extreme vertical speeds
+        double maxVerticalSpeed = 1.5; // Very generous
         if (player.hasStatusEffect(StatusEffects.JUMP_BOOST)) {
             int amplifier = player.getStatusEffect(StatusEffects.JUMP_BOOST).getAmplifier() + 1;
-            maxVertical += 0.1 * amplifier;
+            maxVerticalSpeed += 0.3 * amplifier;
         }
 
-        // Allow extra vertical movement when stepping up - be more lenient
-        if (toContext.maxStepHeight > 0 && verticalDistance <= toContext.maxStepHeight + 0.6) {
-            return false; // Valid step up - increased tolerance
-        }
-
-        if (verticalDistance > maxVertical * LAG_COMPENSATION_MULTIPLIER) {
-            recordViolation(data, player, String.format("Fly hack: upward %.3f (max: %.3f)", 
-                verticalDistance, maxVertical));
+        if (verticalDistance > maxVerticalSpeed) {
+            recordViolation(data, player, String.format("Extreme vertical speed: %.3f", verticalDistance));
             return true;
         }
 
-        // Enhanced hovering detection
-        if (data.airTime > 30 && Math.abs(verticalDistance) < 0.02 && !player.isOnGround()) {
-            if (!toContext.canSupportPlayer() && !hasLevitation(player)) {
-                recordViolation(data, player, "Hovering in air without support");
-                return true;
-            }
-        }
-
-        // Anti-gravity detection with context
-        if (data.airTime > 60 && verticalDistance > -0.05) {
-            if (!toContext.canSupportPlayer() && !hasSlowFalling(player) && !hasLevitation(player)) {
-                recordViolation(data, player, "Anti-gravity detected");
-                return true;
-            }
+        // Simple hovering check - only for extreme cases
+        if (data.airTime > 100 && Math.abs(verticalDistance) < 0.005) {
+            recordViolation(data, player, "Hovering detected");
+            return true;
         }
 
         return false;
@@ -324,50 +387,34 @@ public class MovementAntiCheat {
         // Calculate distance for this method
         double distance = fromPos.distanceTo(toPos);
         
-        // Be much more lenient - only check for obvious phasing
-        if (distance < 0.5) return false; // Skip check for small movements
+        // Only check for significant movements that could be phasing
+        if (distance < 0.8) return false;
 
-        // Quick check: if destination has obstructions, likely phasing - but be more lenient
-        if (toContext.hasObstructions && !player.getAbilities().allowFlying && distance > 1.0) {
-            recordViolation(getPlayerData(player.getUuid()), player, 
-                "Phase through solid blocks at destination");
-            return true;
-        }
-
-        // Detailed path checking for longer movements
+        // Simple check: moving through solid blocks
+        ServerWorld world = player.getWorld();
         Vec3d direction = toPos.subtract(fromPos);
         double pathDistance = direction.length();
+        Vec3d normalized = direction.normalize();
+        int steps = Math.max(5, (int) (pathDistance * 10));
+        Box playerBox = player.getBoundingBox();
 
-        if (pathDistance > 0.3) {
-            ServerWorld world = player.getWorld();
-            Vec3d normalized = direction.normalize();
-            int steps = Math.max(3, (int) (pathDistance * 8));
-            Box playerBox = player.getBoundingBox();
+        // Check path for solid blocks
+        for (int i = 1; i < steps; i++) {
+            double progress = (double) i / steps;
+            Vec3d checkPos = fromPos.add(direction.multiply(progress));
+            Box checkBox = playerBox.offset(checkPos.subtract(fromPos));
 
-            for (int i = 1; i < steps; i++) {
-                double progress = (double) i / steps;
-                Vec3d checkPos = fromPos.add(direction.multiply(progress));
-                Box checkBox = playerBox.offset(checkPos.subtract(fromPos));
-
-                // Check if player box intersects solid blocks
-                BlockPos blockPos = BlockPos.ofFloored(checkPos.x, checkPos.y, checkPos.z);
-                for (int x = -1; x <= 1; x++) {
-                    for (int y = 0; y <= 2; y++) {
-                        for (int z = -1; z <= 1; z++) {
-                            BlockPos checkBlockPos = blockPos.add(x, y, z);
-                            BlockState state = world.getBlockState(checkBlockPos);
-                            if (!state.isAir() && state.getBlock() != Blocks.WATER) {
-                                VoxelShape shape = state.getCollisionShape(world, checkBlockPos);
-                                if (!shape.isEmpty()) {
-                                    Box blockBox = shape.getBoundingBox().offset(checkBlockPos);
-                                    if (checkBox.intersects(blockBox)) {
-                                        recordViolation(getPlayerData(player.getUuid()), player,
-                                            "Phase/NoClip through " + state.getBlock() + " at " + checkBlockPos);
-                                        return true;
-                                    }
-                                }
-                            }
-                        }
+            BlockPos blockPos = BlockPos.ofFloored(checkPos.x, checkPos.y, checkPos.z);
+            BlockState state = world.getBlockState(blockPos);
+            
+            if (!state.isAir() && state.getBlock() != Blocks.WATER) {
+                VoxelShape shape = state.getCollisionShape(world, blockPos);
+                if (!shape.isEmpty()) {
+                    Box blockBox = shape.getBoundingBox().offset(blockPos);
+                    if (checkBox.intersects(blockBox)) {
+                        recordViolation(getPlayerData(player.getUuid()), player,
+                            "Phase/NoClip through " + state.getBlock());
+                        return true;
                     }
                 }
             }
