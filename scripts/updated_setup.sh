@@ -231,6 +231,7 @@ log "Configuring sudo permissions for dashboardapp to manage Minecraft service..
 
 cat <<EOF > "$SUDOERS_FILE"
 dashboardapp ALL=(ALL) NOPASSWD: \
+    /usr/bin/journalctl -u minecraft.service, \
     /usr/bin/tee /etc/systemd/system/minecraft.service, \
     /usr/bin/tee /etc/systemd/system/dashboard-mod.service, \
     /usr/bin/chown, \
