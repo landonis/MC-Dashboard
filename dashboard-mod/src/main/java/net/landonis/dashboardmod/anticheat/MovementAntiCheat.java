@@ -112,11 +112,14 @@ public class MovementAntiCheat {
                         // Check for climbable blocks
                         if (isClimbable(block)) climbable = true;
 
-                        // Check for obstructions in movement path
+                        // Check for obstructions in movement path - be more lenient
                         if (y >= 0 && y <= 1 && isSolid(block)) {
-                            Box blockBox = state.getCollisionShape(world, checkPos).getBoundingBox().offset(checkPos);
-                            if (blockBox.intersects(playerBox)) {
-                                obstructed = true;
+                            VoxelShape shape = state.getCollisionShape(world, checkPos);
+                            if (!shape.isEmpty()) {
+                                Box blockBox = shape.getBoundingBox().offset(checkPos);
+                                if (blockBox.intersects(playerBox)) {
+                                    obstructed = true;
+                                }
                             }
                         }
                     }
@@ -146,7 +149,11 @@ public class MovementAntiCheat {
 
         private double getBlockStepHeight(Block block, BlockState state) {
             if (block instanceof SlabBlock) {
-                return state.get(SlabBlock.TYPE) == net.minecraft.block.enums.SlabType.DOUBLE ? 1.0 : 0.5;
+                try {
+                    return state.get(SlabBlock.TYPE) == net.minecraft.block.enums.SlabType.DOUBLE ? 1.0 : 0.5;
+                } catch (IllegalArgumentException e) {
+                    return 0.5; // Default slab height if property doesn't exist
+                }
             }
             if (block instanceof StairsBlock) return 0.75;
             if (block instanceof FenceBlock || block instanceof WallBlock) return 1.5;
@@ -159,8 +166,12 @@ public class MovementAntiCheat {
         }
 
         public boolean isValidGroundState(boolean playerOnGround) {
-            if (playerOnGround && !canSupportPlayer()) return false;
-            if (!playerOnGround && onSolidGround && !inWater) return false;
+            // Be more lenient with ground state validation
+            if (playerOnGround && !canSupportPlayer()) {
+                // Allow some tolerance for client-server sync issues
+                return !(onSolidGround == false && !inWater && !hasClimbable);
+            }
+            // Don't be too strict about air-ground mismatches
             return true;
         }
     }
@@ -309,6 +320,9 @@ public class MovementAntiCheat {
                                        BlockContext fromContext, BlockContext toContext) {
         if (player.isSpectator()) return false;
 
+        // Calculate distance for this method
+        double distance = fromPos.distanceTo(toPos);
+        
         // Be much more lenient - only check for obvious phasing
         if (distance < 0.5) return false; // Skip check for small movements
 
@@ -452,17 +466,26 @@ public class MovementAntiCheat {
             baseSpeed *= 1.3; // Faster on ice
         }
 
-        // Status effect modifications
-        if (player.hasStatusEffect(StatusEffects.SPEED)) {
-            int amplifier = player.getStatusEffect(StatusEffects.SPEED).getAmplifier() + 1;
-            baseSpeed *= (1.0 + 0.2 * amplifier);
+        // Status effect modifications with safety checks
+        try {
+            if (player.hasStatusEffect(StatusEffects.SPEED)) {
+                int amplifier = player.getStatusEffect(StatusEffects.SPEED).getAmplifier() + 1;
+                baseSpeed *= (1.0 + 0.2 * Math.min(amplifier, 10)); // Cap amplifier
+            }
+            if (player.hasStatusEffect(StatusEffects.SLOWNESS)) {
+                int amplifier = player.getStatusEffect(StatusEffects.SLOWNESS).getAmplifier() + 1;
+                baseSpeed *= (1.0 - 0.15 * Math.min(amplifier, 10)); // Cap amplifier
+            }
+        } catch (Exception e) {
+            // Fallback if status effect queries fail
         }
-        if (player.hasStatusEffect(StatusEffects.SLOWNESS)) {
-            int amplifier = player.getStatusEffect(StatusEffects.SLOWNESS).getAmplifier() + 1;
-            baseSpeed *= (1.0 - 0.15 * amplifier);
-        }
+
         if (player.isCreative() || player.isSpectator()) {
-            baseSpeed = player.getAbilities().getFlySpeed() * 20;
+            try {
+                baseSpeed = player.getAbilities().getFlySpeed() * 20;
+            } catch (Exception e) {
+                baseSpeed = MAX_FLY_SPEED * 20; // Fallback
+            }
         }
 
         return Math.max(baseSpeed, 0.01);
@@ -504,19 +527,33 @@ public class MovementAntiCheat {
     }
 
     private boolean hasLevitation(ServerPlayerEntity player) {
-        return player.hasStatusEffect(StatusEffects.LEVITATION);
+        try {
+            return player.hasStatusEffect(StatusEffects.LEVITATION);
+        } catch (Exception e) {
+            return false; // Fallback if status effect check fails
+        }
     }
 
     private boolean hasSlowFalling(ServerPlayerEntity player) {
-        return player.hasStatusEffect(StatusEffects.SLOW_FALLING);
+        try {
+            return player.hasStatusEffect(StatusEffects.SLOW_FALLING);
+        } catch (Exception e) {
+            return false; // Fallback if status effect check fails
+        }
     }
 
     private void recordViolation(PlayerMovementData data, ServerPlayerEntity player, String reason) {
         data.violationCount++;
         data.lastViolation = System.currentTimeMillis();
 
-        System.out.println("[AntiCheat] Movement violation by " + player.getName().getString() +
-                ": " + reason + " (Total: " + data.violationCount + ")");
+        // Add debug logging with safety checks
+        try {
+            System.out.println("[AntiCheat] Movement violation by " + player.getName().getString() +
+                    ": " + reason + " (Total: " + data.violationCount + ")");
+        } catch (Exception e) {
+            System.out.println("[AntiCheat] Movement violation by unknown player: " + reason + 
+                    " (Total: " + data.violationCount + ")");
+        }
 
         remediate(player, data, reason);
     }
