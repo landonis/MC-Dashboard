@@ -128,20 +128,13 @@ public class ActionRateLimiter {
         
         long cooldown = BLOCK_BREAK_COOLDOWN;
         
-        // Get the tool efficiency level
-        ItemStack tool = player.getMainHandStack();
-        int efficiencyLevel = getEfficiencyLevel(tool);
-        
-        // Adjust cooldown based on efficiency enchantment
-        if (efficiencyLevel > 0) {
-            // Efficiency reduces cooldown: 15% per level, minimum 10ms
-            float reduction = 1.0f - (efficiencyLevel * 0.15f);
-            cooldown = Math.max(10, (long)(cooldown * reduction));
-        }
+        // Much more lenient cooldowns for all tools to account for efficiency enchantments
+        // Since we can't easily detect efficiency, we'll just be more permissive
+        cooldown = 20; // Reduced from 50ms to 20ms to handle high efficiency tools
         
         // Allow faster breaking for certain blocks (like crops)
         if (block != null && isHarvestableBlock(block)) {
-            cooldown = Math.min(cooldown, 15); // Even faster for crops, but respect efficiency
+            cooldown = 10; // Very fast for crops
         }
         
         // Special case for instant break blocks (like grass, flowers)
@@ -151,7 +144,7 @@ public class ActionRateLimiter {
         
         // Check cooldown
         if (currentTime - data.lastBlockBreak < cooldown) {
-            recordViolation(data, player, "Block break too fast: " + (currentTime - data.lastBlockBreak) + "ms (tool efficiency " + efficiencyLevel + ", required " + cooldown + "ms)");
+            recordViolation(data, player, "Block break too fast: " + (currentTime - data.lastBlockBreak) + "ms (required " + cooldown + "ms)");
             return false;
         }
         
@@ -372,39 +365,6 @@ public class ActionRateLimiter {
         return blockName.contains("grass") || blockName.contains("flower") || 
                blockName.contains("sapling") || blockName.contains("mushroom") ||
                blockName.contains("torch") || blockName.contains("redstone_wire");
-    }
-    
-    private int getEfficiencyLevel(ItemStack tool) {
-        if (tool == null || tool.isEmpty()) return 0;
-        
-        // Check if it's a tool that can have efficiency by checking the item type
-        Item item = tool.getItem();
-        if (item == Items.DIAMOND_PICKAXE || item == Items.IRON_PICKAXE || item == Items.GOLDEN_PICKAXE || 
-            item == Items.STONE_PICKAXE || item == Items.WOODEN_PICKAXE || item == Items.NETHERITE_PICKAXE ||
-            item == Items.DIAMOND_SHOVEL || item == Items.IRON_SHOVEL || item == Items.GOLDEN_SHOVEL ||
-            item == Items.STONE_SHOVEL || item == Items.WOODEN_SHOVEL || item == Items.NETHERITE_SHOVEL ||
-            item == Items.DIAMOND_AXE || item == Items.IRON_AXE || item == Items.GOLDEN_AXE ||
-            item == Items.STONE_AXE || item == Items.WOODEN_AXE || item == Items.NETHERITE_AXE ||
-            item == Items.DIAMOND_HOE || item == Items.IRON_HOE || item == Items.GOLDEN_HOE ||
-            item == Items.STONE_HOE || item == Items.WOODEN_HOE || item == Items.NETHERITE_HOE) {
-            
-            // Try to get efficiency enchantment level using NBT data
-            try {
-                var enchantments = tool.getEnchantments();
-                for (int i = 0; i < enchantments.size(); i++) {
-                    var enchantment = enchantments.getCompound(i);
-                    String enchantmentId = enchantment.getString("id");
-                    if (enchantmentId.contains("efficiency")) {
-                        return enchantment.getInt("lvl");
-                    }
-                }
-            } catch (Exception e) {
-                // If enchantment detection fails, assume no efficiency
-                return 0;
-            }
-        }
-        
-        return 0;
     }
     
     /**
