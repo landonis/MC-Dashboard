@@ -388,8 +388,20 @@ public class ActionRateLimiter {
             item == Items.DIAMOND_HOE || item == Items.IRON_HOE || item == Items.GOLDEN_HOE ||
             item == Items.STONE_HOE || item == Items.WOODEN_HOE || item == Items.NETHERITE_HOE) {
             
-            // Get efficiency enchantment level
-            return tool.getEnchantments().getLevel(Enchantments.EFFICIENCY);
+            // Try to get efficiency enchantment level using NBT data
+            try {
+                var enchantments = tool.getEnchantments();
+                for (int i = 0; i < enchantments.size(); i++) {
+                    var enchantment = enchantments.getCompound(i);
+                    String enchantmentId = enchantment.getString("id");
+                    if (enchantmentId.contains("efficiency")) {
+                        return enchantment.getInt("lvl");
+                    }
+                }
+            } catch (Exception e) {
+                // If enchantment detection fails, assume no efficiency
+                return 0;
+            }
         }
         
         return 0;
