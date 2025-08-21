@@ -266,7 +266,8 @@ public class MovementAntiCheat {
             if (avgSpeed > maxSpeed * 0.85 && horizontalDistance > maxSpeed * 0.85) {
                 // Only flag if not in a legitimate high-speed context
                 if (!toContext.inWater && !isOnIce(toContext) && !toContext.hasClimbable) {
-                    recordViolation(data, player, String.format("Consistent high speed: %.3f", avgSpeed));
+                    recordViolation(data, player, String.format("Consistent high speed: %.3f (avg: %.3f, max: %.3f)", 
+                        horizontalDistance, avgSpeed, maxSpeed));
                     return true;
                 }
             }
@@ -335,12 +336,12 @@ public class MovementAntiCheat {
 
         // Detailed path checking for longer movements
         Vec3d direction = toPos.subtract(fromPos);
-        double distance = direction.length();
+        double pathDistance = direction.length();
 
-        if (distance > 0.3) {
+        if (pathDistance > 0.3) {
             ServerWorld world = player.getWorld();
             Vec3d normalized = direction.normalize();
-            int steps = Math.max(3, (int) (distance * 8));
+            int steps = Math.max(3, (int) (pathDistance * 8));
             Box playerBox = player.getBoundingBox();
 
             for (int i = 1; i < steps; i++) {
@@ -353,15 +354,15 @@ public class MovementAntiCheat {
                 for (int x = -1; x <= 1; x++) {
                     for (int y = 0; y <= 2; y++) {
                         for (int z = -1; z <= 1; z++) {
-                            BlockPos pos = blockPos.add(x, y, z);
-                            BlockState state = world.getBlockState(pos);
+                            BlockPos checkBlockPos = blockPos.add(x, y, z);
+                            BlockState state = world.getBlockState(checkBlockPos);
                             if (!state.isAir() && state.getBlock() != Blocks.WATER) {
-                                VoxelShape shape = state.getCollisionShape(world, pos);
+                                VoxelShape shape = state.getCollisionShape(world, checkBlockPos);
                                 if (!shape.isEmpty()) {
-                                    Box blockBox = shape.getBoundingBox().offset(pos);
+                                    Box blockBox = shape.getBoundingBox().offset(checkBlockPos);
                                     if (checkBox.intersects(blockBox)) {
                                         recordViolation(getPlayerData(player.getUuid()), player,
-                                            "Phase/NoClip through " + state.getBlock() + " at " + pos);
+                                            "Phase/NoClip through " + state.getBlock() + " at " + checkBlockPos);
                                         return true;
                                     }
                                 }
@@ -396,11 +397,11 @@ public class MovementAntiCheat {
         // Enhanced Jesus detection
         if (context.inWater && player.isOnGround() && !player.isSwimming()) {
             // Check if actually on water surface
-            BlockPos pos = BlockPos.ofFloored(position.x, position.y, position.z);
+            BlockPos playerPos = BlockPos.ofFloored(position.x, position.y, position.z);
             ServerWorld world = player.getWorld();
             
-            if (world.getBlockState(pos.down()).getBlock() == Blocks.WATER &&
-                world.getBlockState(pos).getBlock() == Blocks.AIR) {
+            if (world.getBlockState(playerPos.down()).getBlock() == Blocks.WATER &&
+                world.getBlockState(playerPos).getBlock() == Blocks.AIR) {
                 recordViolation(getPlayerData(player.getUuid()), player, "Jesus/Water walking");
                 return true;
             }
@@ -561,19 +562,31 @@ public class MovementAntiCheat {
     private void remediate(ServerPlayerEntity player, PlayerMovementData data, String reason) {
         // Be much more lenient with teleporting back
         if (data.violationCount > 8 && data.lastValidPosition != null) {
-            player.requestTeleport(data.lastValidPosition.x, data.lastValidPosition.y, data.lastValidPosition.z);
+            try {
+                player.requestTeleport(data.lastValidPosition.x, data.lastValidPosition.y, data.lastValidPosition.z);
+            } catch (Exception e) {
+                System.out.println("[AntiCheat] Failed to teleport player back: " + e.getMessage());
+            }
         }
 
-        if (data.violationCount == 10) {
-            player.sendMessage(net.minecraft.text.Text.of("§6[AntiCheat] §eMovement irregularities detected"));
-        }
+        try {
+            if (data.violationCount == 10) {
+                player.sendMessage(net.minecraft.text.Text.of("§6[AntiCheat] §eMovement irregularities detected"));
+            }
 
-        if (data.violationCount == 15) {
-            player.sendMessage(net.minecraft.text.Text.of("§c[AntiCheat] §cSuspicious movement patterns detected"));
+            if (data.violationCount == 15) {
+                player.sendMessage(net.minecraft.text.Text.of("§c[AntiCheat] §cSuspicious movement patterns detected"));
+            }
+        } catch (Exception e) {
+            System.out.println("[AntiCheat] Failed to send message to player: " + e.getMessage());
         }
 
         if (data.violationCount > MAX_VIOLATIONS_BEFORE_KICK) {
-            System.out.println("[AntiCheat] Player " + player.getName().getString() + " should be kicked for violations");
+            try {
+                System.out.println("[AntiCheat] Player " + player.getName().getString() + " should be kicked for violations");
+            } catch (Exception e) {
+                System.out.println("[AntiCheat] Player should be kicked for violations (name unavailable)");
+            }
         }
     }
 
