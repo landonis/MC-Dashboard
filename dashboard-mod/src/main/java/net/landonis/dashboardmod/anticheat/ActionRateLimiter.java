@@ -11,7 +11,7 @@ import net.minecraft.entity.passive.AnimalEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.Items;
 import net.minecraft.item.ItemStack;
-import net.minecraft.item.ToolItem;
+import net.minecraft.item.MiningToolItem;
 import net.minecraft.enchantment.Enchantments;
 import net.minecraft.util.Hand;
 import java.util.*;
@@ -378,8 +378,8 @@ public class ActionRateLimiter {
     private int getEfficiencyLevel(ItemStack tool) {
         if (tool == null || tool.isEmpty()) return 0;
         
-        // Check if it's a tool that can have efficiency
-        if (!(tool.getItem() instanceof ToolItem)) return 0;
+        // Check if it's a tool that can have efficiency (mining tools like pickaxe, shovel, axe, hoe)
+        if (!(tool.getItem() instanceof MiningToolItem)) return 0;
         
         // Get efficiency enchantment level
         return tool.getEnchantments().getLevel(Enchantments.EFFICIENCY);
