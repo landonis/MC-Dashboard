@@ -4,7 +4,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.block.Block;
 import net.minecraft.block.DoorBlock;
-import net.minecraft.block.TrapDoorBlock;
+import net.minecraft.block.TrapdoorBlock;
 import net.minecraft.block.FenceGateBlock;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.passive.AnimalEntity;
@@ -18,30 +18,31 @@ import java.util.concurrent.ConcurrentHashMap;
  * Enhanced Action Rate Limiter for Minecraft Fabric Anticheat
  * Context-aware detection that differentiates between legitimate and suspicious actions
  */
-public class EnhancedActionRateLimiter {
+public class ActionRateLimiter {
     
     // Base cooldowns (more lenient for context-aware detection)
-    private static final long BLOCK_BREAK_COOLDOWN = 20;
-    private static final long BLOCK_PLACE_COOLDOWN = 30;
-    private static final long ITEM_USE_COOLDOWN = 50;
-    private static final long ATTACK_COOLDOWN = 150;
-    private static final int MAX_ACTIONS_PER_SECOND = 40;
+    private static final long BLOCK_BREAK_COOLDOWN = 25; // Slightly more lenient than before
+    private static final long BLOCK_PLACE_COOLDOWN = 50;
+    private static final long ITEM_USE_COOLDOWN = 75; // Compromise between old harsh and new lenient
+    private static final long ATTACK_COOLDOWN = 200;
+    private static final int MAX_ACTIONS_PER_SECOND = 35;
     
     // Context-specific allowances
-    private static final long DOOR_INTERACTION_COOLDOWN = 10; // Very fast door opening allowed
-    private static final long ANIMAL_FEEDING_COOLDOWN = 25; // Fast animal feeding allowed
-    private static final int MAX_SEQUENTIAL_FEEDS = 20; // Max animals fed in sequence
+    private static final long DOOR_INTERACTION_COOLDOWN = 15; // Very fast door opening allowed
+    private static final long ANIMAL_FEEDING_COOLDOWN = 30; // Fast animal feeding allowed
+    private static final int MAX_SEQUENTIAL_FEEDS = 15; // Max animals fed in sequence
     private static final long FEED_SEQUENCE_TIMEOUT = 5000; // 5 seconds
     
     // Violation thresholds
-    private static final int MAX_VIOLATIONS_BEFORE_KICK = 20;
-    private static final long VIOLATION_DECAY_TIME = 45000; // 45 seconds
+    private static final int MAX_VIOLATIONS_BEFORE_KICK = 15;
+    private static final long VIOLATION_DECAY_TIME = 30000; // 30 seconds
     private static final long CLEANUP_INTERVAL = 300000; // 5 minutes
     
     // Suspicious pattern detection
-    private static final int SUSPICIOUS_RAPID_ACTIONS = 50; // Actions per second that's clearly suspicious
+    private static final int SUSPICIOUS_RAPID_ACTIONS = 45; // Actions per second that's clearly suspicious
     private static final long PATTERN_DETECTION_WINDOW = 3000; // 3 seconds
     
+    // Player tracking data
     private final Map<UUID, PlayerActionData> playerData = new ConcurrentHashMap<>();
     private final Set<Item> ANIMAL_FOOD = Set.of(
         Items.WHEAT, Items.CARROT, Items.POTATO, Items.BEETROOT,
@@ -51,32 +52,31 @@ public class EnhancedActionRateLimiter {
     );
     private long lastCleanup = System.currentTimeMillis();
     
+    /**
+     * Internal class to track player action history
+     */
     private static class PlayerActionData {
-        // Basic action tracking
+        // Basic action tracking (keep original structure for compatibility)
         private long lastBlockBreak = 0;
         private long lastBlockPlace = 0;
         private long lastItemUse = 0;
         private long lastAttack = 0;
         
-        // Context-aware tracking
+        // Enhanced context-aware tracking
         private long lastDoorInteraction = 0;
         private long lastAnimalFeed = 0;
         private int sequentialFeeds = 0;
-        private long feedSequenceStart = 0;
         private BlockPos lastDoorPos = null;
         
-        // Efficient action tracking (circular buffer instead of queue)
-        private final long[] recentActionTimes = new long[60]; // Store last 60 actions
+        // Efficient action tracking (replacing the old Queue)
+        private final long[] recentActionTimes = new long[50];
         private int actionIndex = 0;
         private int actionCount = 0;
         
-        // Violation tracking
+        // Violation tracking (keep original structure)
         private int violationCount = 0;
         private long lastViolation = 0;
         private int suspiciousPatternCount = 0;
-        
-        // Performance optimization
-        private long lastMaintenanceCheck = 0;
         
         void addAction(long timestamp) {
             recentActionTimes[actionIndex] = timestamp;
@@ -95,7 +95,7 @@ public class EnhancedActionRateLimiter {
                 if (recentActionTimes[index] >= cutoff) {
                     count++;
                 } else {
-                    break; // Actions are in chronological order
+                    break;
                 }
                 index = (index - 1 + recentActionTimes.length) % recentActionTimes.length;
             }
@@ -103,6 +103,16 @@ public class EnhancedActionRateLimiter {
         }
     }
     
+    /**
+     * Check if a block break action is allowed - Enhanced version
+     */
+    public boolean canBreakBlock(ServerPlayerEntity player, BlockPos pos) {
+        return canBreakBlock(player, pos, null);
+    }
+    
+    /**
+     * Check if a block break action is allowed with block context
+     */
     public boolean canBreakBlock(ServerPlayerEntity player, BlockPos pos, Block block) {
         UUID playerId = player.getUuid();
         PlayerActionData data = getPlayerData(playerId);
@@ -117,27 +127,33 @@ public class EnhancedActionRateLimiter {
         long cooldown = BLOCK_BREAK_COOLDOWN;
         
         // Allow faster breaking for certain blocks (like crops)
-        if (isHarvestableBlock(block)) {
+        if (block != null && isHarvestableBlock(block)) {
             cooldown = BLOCK_BREAK_COOLDOWN / 2;
         }
         
+        // Check cooldown
         if (currentTime - data.lastBlockBreak < cooldown) {
-            recordViolation(data, player, "Block break too fast");
+            recordViolation(data, player, "Block break too fast: " + (currentTime - data.lastBlockBreak) + "ms");
             return false;
         }
         
-        if (!checkGeneralActionRate(data, currentTime)) {
-            recordViolation(data, player, "Too many actions per second");
+        // Check general action rate
+        if (!checkActionRate(data, currentTime)) {
+            recordViolation(data, player, "Too many actions per second: " + countRecentActions(data, currentTime));
             return false;
         }
         
+        // Update last action time
         data.lastBlockBreak = currentTime;
         data.addAction(currentTime);
         
         return true;
     }
     
-    public boolean canPlaceBlock(ServerPlayerEntity player, BlockPos pos, Block block) {
+    /**
+     * Check if a block place action is allowed
+     */
+    public boolean canPlaceBlock(ServerPlayerEntity player, BlockPos pos) {
         UUID playerId = player.getUuid();
         PlayerActionData data = getPlayerData(playerId);
         long currentTime = System.currentTimeMillis();
@@ -148,12 +164,12 @@ public class EnhancedActionRateLimiter {
         }
         
         if (currentTime - data.lastBlockPlace < BLOCK_PLACE_COOLDOWN) {
-            recordViolation(data, player, "Block place too fast");
+            recordViolation(data, player, "Block place too fast: " + (currentTime - data.lastBlockPlace) + "ms");
             return false;
         }
         
-        if (!checkGeneralActionRate(data, currentTime)) {
-            recordViolation(data, player, "Too many actions per second");
+        if (!checkActionRate(data, currentTime)) {
+            recordViolation(data, player, "Too many actions per second: " + countRecentActions(data, currentTime));
             return false;
         }
         
@@ -163,13 +179,23 @@ public class EnhancedActionRateLimiter {
         return true;
     }
     
+    /**
+     * Check if an item use action is allowed - Original method for compatibility
+     */
+    public boolean canUseItem(ServerPlayerEntity player) {
+        return canUseItem(player, null, Hand.MAIN_HAND, null);
+    }
+    
+    /**
+     * Check if an item use action is allowed with context
+     */
     public boolean canUseItem(ServerPlayerEntity player, Item item, Hand hand, Entity targetEntity) {
         UUID playerId = player.getUuid();
         PlayerActionData data = getPlayerData(playerId);
         long currentTime = System.currentTimeMillis();
         
         // Context-aware checking for animal feeding
-        if (targetEntity instanceof AnimalEntity && ANIMAL_FOOD.contains(item)) {
+        if (targetEntity instanceof AnimalEntity && item != null && ANIMAL_FOOD.contains(item)) {
             return handleAnimalFeeding(data, player, currentTime);
         }
         
@@ -180,12 +206,12 @@ public class EnhancedActionRateLimiter {
         }
         
         if (currentTime - data.lastItemUse < ITEM_USE_COOLDOWN) {
-            recordViolation(data, player, "Item use too fast");
+            recordViolation(data, player, "Item use too fast: " + (currentTime - data.lastItemUse) + "ms");
             return false;
         }
         
-        if (!checkGeneralActionRate(data, currentTime)) {
-            recordViolation(data, player, "Too many actions per second");
+        if (!checkActionRate(data, currentTime)) {
+            recordViolation(data, player, "Too many actions per second: " + countRecentActions(data, currentTime));
             return false;
         }
         
@@ -195,6 +221,9 @@ public class EnhancedActionRateLimiter {
         return true;
     }
     
+    /**
+     * Check if a block interaction is allowed (doors, etc.)
+     */
     public boolean canInteractWithBlock(ServerPlayerEntity player, BlockPos pos, Block block) {
         UUID playerId = player.getUuid();
         PlayerActionData data = getPlayerData(playerId);
@@ -205,10 +234,20 @@ public class EnhancedActionRateLimiter {
             return handleDoorInteraction(data, player, pos, currentTime);
         }
         
-        // Default item use logic for other blocks
-        return canUseItem(player, player.getMainHandStack().getItem(), Hand.MAIN_HAND, null);
+        // Default to item use logic for other blocks
+        return canUseItem(player);
     }
     
+    /**
+     * Check if an attack action is allowed - Original method for compatibility
+     */
+    public boolean canAttack(ServerPlayerEntity player) {
+        return canAttack(player, null);
+    }
+    
+    /**
+     * Check if an attack action is allowed with target context
+     */
     public boolean canAttack(ServerPlayerEntity player, Entity target) {
         UUID playerId = player.getUuid();
         PlayerActionData data = getPlayerData(playerId);
@@ -223,12 +262,12 @@ public class EnhancedActionRateLimiter {
         }
         
         if (currentTime - data.lastAttack < cooldown) {
-            recordViolation(data, player, "Attack too fast");
+            recordViolation(data, player, "Attack too fast: " + (currentTime - data.lastAttack) + "ms");
             return false;
         }
         
-        if (!checkGeneralActionRate(data, currentTime)) {
-            recordViolation(data, player, "Too many actions per second");
+        if (!checkActionRate(data, currentTime)) {
+            recordViolation(data, player, "Too many actions per second: " + countRecentActions(data, currentTime));
             return false;
         }
         
@@ -242,7 +281,6 @@ public class EnhancedActionRateLimiter {
         // Reset sequence if it's been too long since last feed
         if (currentTime - data.lastAnimalFeed > FEED_SEQUENCE_TIMEOUT) {
             data.sequentialFeeds = 0;
-            data.feedSequenceStart = currentTime;
         }
         
         // Allow rapid feeding up to a reasonable limit
@@ -274,9 +312,9 @@ public class EnhancedActionRateLimiter {
             return true;
         }
         
-        // Same door - allow reasonable interaction speed
+        // Same door - allow reasonable interaction speed but warn if too fast
         if (currentTime - data.lastDoorInteraction < DOOR_INTERACTION_COOLDOWN) {
-            // Only warn, don't block door interactions completely
+            // Only warn for excessive door spam, but still allow the action
             if (data.violationCount < 3) {
                 recordViolation(data, player, "Very rapid door interaction");
             }
@@ -300,12 +338,8 @@ public class EnhancedActionRateLimiter {
         return false;
     }
     
-    private boolean checkGeneralActionRate(PlayerActionData data, long currentTime) {
-        return data.countRecentActions(currentTime, 1000) < MAX_ACTIONS_PER_SECOND;
-    }
-    
     private boolean isDoorLikeBlock(Block block) {
-        return block instanceof DoorBlock || block instanceof TrapDoorBlock || block instanceof FenceGateBlock;
+        return block instanceof DoorBlock || block instanceof TrapdoorBlock || block instanceof FenceGateBlock;
     }
     
     private boolean isHarvestableBlock(Block block) {
@@ -315,47 +349,75 @@ public class EnhancedActionRateLimiter {
                blockName.contains("beetroot") || blockName.contains("berry");
     }
     
+    /**
+     * Get or create player data
+     */
     private PlayerActionData getPlayerData(UUID playerId) {
         return playerData.computeIfAbsent(playerId, k -> new PlayerActionData());
     }
     
+    /**
+     * Check if the player is exceeding the general action rate limit
+     */
+    private boolean checkActionRate(PlayerActionData data, long currentTime) {
+        return countRecentActions(data, currentTime) < MAX_ACTIONS_PER_SECOND;
+    }
+    
+    /**
+     * Count recent actions in the last second
+     */
+    private int countRecentActions(PlayerActionData data, long currentTime) {
+        return data.countRecentActions(currentTime, 1000);
+    }
+    
+    /**
+     * Record a violation for the player
+     */
     private void recordViolation(PlayerActionData data, ServerPlayerEntity player, String reason) {
         data.violationCount++;
         data.lastViolation = System.currentTimeMillis();
         
         try {
             System.out.println("[AntiCheat] Rate limit violation by " + player.getName().getString() + 
-                              ": " + reason + " (Total: " + data.violationCount + ")");
+                              ": " + reason + " (Total violations: " + data.violationCount + ")");
         } catch (Exception e) {
-            System.out.println("[AntiCheat] Rate limit violation: " + reason);
+            System.out.println("[AntiCheat] Rate limit violation: " + reason + 
+                              " (Total violations: " + data.violationCount + ")");
         }
         
-        // Progressive warnings
+        // Send feedback to player
         try {
-            if (data.violationCount == 5) {
-                player.sendMessage(net.minecraft.text.Text.of("§6[AntiCheat] §eSlowing down - detected rapid actions"));
-            } else if (data.violationCount == 12) {
-                player.sendMessage(net.minecraft.text.Text.of("§c[AntiCheat] §cWarning: Suspicious activity detected"));
+            if (data.violationCount == 3) {
+                player.sendMessage(net.minecraft.text.Text.of("§6[AntiCheat] §eSlowing down actions to prevent violations"), false);
+            } else if (data.violationCount == 8) {
+                player.sendMessage(net.minecraft.text.Text.of("§c[AntiCheat] §cToo many rapid actions detected"), false);
             }
         } catch (Exception e) {
-            // Ignore message errors
+            // Ignore message sending errors
         }
         
+        // Implement escalating punishments based on violation count
         if (data.violationCount > MAX_VIOLATIONS_BEFORE_KICK) {
             try {
                 System.out.println("[AntiCheat] Player " + player.getName().getString() + 
-                                 " exceeded violation threshold - consider review");
+                                 " exceeded rate limit violation threshold");
             } catch (Exception e) {
-                System.out.println("[AntiCheat] Player exceeded violation threshold");
+                System.out.println("[AntiCheat] Player exceeded rate limit violation threshold");
             }
         }
     }
     
+    /**
+     * Get violation count for a player
+     */
     public int getViolationCount(ServerPlayerEntity player) {
         PlayerActionData data = playerData.get(player.getUuid());
         return data != null ? data.violationCount : 0;
     }
     
+    /**
+     * Reset violations for a player (useful for admin commands)
+     */
     public void resetViolations(ServerPlayerEntity player) {
         PlayerActionData data = playerData.get(player.getUuid());
         if (data != null) {
@@ -365,20 +427,23 @@ public class EnhancedActionRateLimiter {
         }
     }
     
-    // Optimized maintenance - only run when needed
+    /**
+     * Clean up old player data to prevent memory leaks
+     */
     public void performMaintenance() {
         long currentTime = System.currentTimeMillis();
         
         if (currentTime - lastCleanup > CLEANUP_INTERVAL) {
-            // Efficient violation decay
-            playerData.values().parallelStream().forEach(data -> {
+            // Apply violation decay first
+            playerData.values().forEach(data -> {
                 if (currentTime - data.lastViolation > VIOLATION_DECAY_TIME) {
-                    data.violationCount = Math.max(0, data.violationCount - 2); // Faster decay
+                    data.violationCount = Math.max(0, data.violationCount - 1);
                     data.suspiciousPatternCount = Math.max(0, data.suspiciousPatternCount - 1);
+                    data.lastViolation = currentTime; // Reset timer
                 }
             });
             
-            // Remove inactive players
+            // Remove data for players who haven't been active recently
             long cutoffTime = currentTime - CLEANUP_INTERVAL;
             playerData.entrySet().removeIf(entry -> {
                 PlayerActionData data = entry.getValue();
@@ -392,11 +457,16 @@ public class EnhancedActionRateLimiter {
         }
     }
     
+    /**
+     * Remove all data for a player (called when player leaves)
+     */
     public void removePlayer(ServerPlayerEntity player) {
         playerData.remove(player.getUuid());
     }
     
-    // Debug methods for admins
+    /**
+     * Debug method for admins to get player stats
+     */
     public String getPlayerStats(ServerPlayerEntity player) {
         PlayerActionData data = playerData.get(player.getUuid());
         if (data == null) return "No data";
