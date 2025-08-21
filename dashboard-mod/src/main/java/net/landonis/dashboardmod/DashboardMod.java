@@ -17,8 +17,6 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.block.Block;
-import net.minecraft.entity.Entity;
-import net.minecraft.util.Hand;
 
 import java.util.UUID;
 import java.util.Map;
@@ -27,12 +25,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import net.landonis.dashboardmod.RegionManager.ClaimedChunk;
 import net.landonis.dashboardmod.anticheat.AntiCheatHelper;
 import net.landonis.dashboardmod.anticheat.AntiCheatCommands;
-import net.landonis.dashboardmod.anticheat.EnhancedActionRateLimiter;
 
 public class DashboardMod implements ModInitializer {
 
     private static final Map<UUID, Vec3d> previousPositions = new ConcurrentHashMap<>();
-    private static final EnhancedActionRateLimiter rateLimiter = new EnhancedActionRateLimiter();
 
     @Override
     public void onInitialize() {
@@ -56,12 +52,7 @@ public class DashboardMod implements ModInitializer {
 
             // Enhanced AntiCheat with block context
             Block block = state.getBlock();
-            if (!rateLimiter.canBreakBlock(serverPlayer, pos, block)) {
-                return false;
-            }
-
-            // Fallback to original AntiCheat for movement/other checks
-            if (!AntiCheatHelper.canBreakBlock(serverPlayer, pos)) {
+            if (!AntiCheatHelper.canBreakBlock(serverPlayer, pos, block)) {
                 return false;
             }
 
@@ -82,12 +73,7 @@ public class DashboardMod implements ModInitializer {
 
             // Enhanced context-aware block interaction checking
             Block targetBlock = world.getBlockState(hitResult.getBlockPos()).getBlock();
-            if (!rateLimiter.canInteractWithBlock(serverPlayer, hitResult.getBlockPos(), targetBlock)) {
-                return ActionResult.FAIL;
-            }
-
-            // Fallback to original AntiCheat for place checking
-            if (!AntiCheatHelper.canPlaceBlock(serverPlayer, hitResult.getBlockPos())) {
+            if (!AntiCheatHelper.canInteractWithBlock(serverPlayer, hitResult.getBlockPos(), targetBlock)) {
                 return ActionResult.FAIL;
             }
 
@@ -118,14 +104,10 @@ public class DashboardMod implements ModInitializer {
             if (!(player instanceof ServerPlayerEntity serverPlayer)) return ActionResult.PASS;
 
             // Enhanced context-aware attack checking
-            if (!rateLimiter.canAttack(serverPlayer, entity)) {
+            if (!AntiCheatHelper.canAttack(serverPlayer, entity)) {
                 return ActionResult.FAIL;
             }
 
-            // Fallback to original AntiCheat
-            if (!AntiCheatHelper.canAttack(serverPlayer)) {
-                return ActionResult.FAIL;
-            }
             return ActionResult.PASS;
         });
 
@@ -134,14 +116,10 @@ public class DashboardMod implements ModInitializer {
             if (!(player instanceof ServerPlayerEntity serverPlayer)) return ActionResult.PASS;
 
             // Enhanced context-aware item use checking (null target entity is handled gracefully)
-            if (!rateLimiter.canUseItem(serverPlayer, serverPlayer.getStackInHand(hand).getItem(), hand, null)) {
+            if (!AntiCheatHelper.canUseItem(serverPlayer, serverPlayer.getStackInHand(hand).getItem(), hand, null)) {
                 return ActionResult.FAIL;
             }
 
-            // Fallback to original AntiCheat
-            if (!AntiCheatHelper.canUseItem(serverPlayer)) {
-                return ActionResult.FAIL;
-            }
             return ActionResult.PASS;
         });
 
@@ -156,7 +134,6 @@ public class DashboardMod implements ModInitializer {
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             ServerPlayerEntity player = handler.getPlayer();
             AntiCheatHelper.onPlayerDisconnect(player);
-            rateLimiter.removePlayer(player); // Enhanced cleanup
             previousPositions.remove(player.getUuid());
         });
 
@@ -176,11 +153,10 @@ public class DashboardMod implements ModInitializer {
             System.out.println("[DashboardMod] Server stopping - saved region data and enhanced anticheat cleanup complete");
         });
 
-        // Tick events for movement anti-cheat and enhanced rate limiter maintenance
+        // Tick events for movement anti-cheat and maintenance
         ServerTickEvents.END_SERVER_TICK.register(server -> {
             if (server.getTicks() % 20 == 0) {
                 AntiCheatHelper.performMaintenance();
-                rateLimiter.performMaintenance(); // Enhanced maintenance
             }
             for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
                 checkPlayerMovement(player);
@@ -220,24 +196,15 @@ public class DashboardMod implements ModInitializer {
 
     public static String getPlayerViolationSummary(ServerPlayerEntity player) {
         int rateViolations = AntiCheatHelper.getRateViolations(player);
-        int enhancedRateViolations = rateLimiter.getViolationCount(player);
         int movementViolations = AntiCheatHelper.getMovementViolations(player);
-        String enhancedStats = rateLimiter.getPlayerStats(player);
+        String enhancedStats = AntiCheatHelper.getPlayerStats(player);
         
-        return String.format("§e%s: Rate violations: %d, Enhanced rate: %d, Movement: %d\n§7Enhanced stats: %s",
-                player.getName().getString(), rateViolations, enhancedRateViolations, movementViolations, enhancedStats);
+        return String.format("§e%s: Rate violations: %d, Movement: %d\n§7Enhanced stats: %s",
+                player.getName().getString(), rateViolations, movementViolations, enhancedStats);
     }
 
     public static void resetPlayerViolations(ServerPlayerEntity player) {
         AntiCheatHelper.resetViolations(player);
-        rateLimiter.resetViolations(player); // Enhanced reset
         player.sendMessage(Text.literal("§a[AntiCheat] Your violations have been reset by an administrator"), false);
-    }
-
-    /**
-     * Get the enhanced rate limiter instance for external use
-     */
-    public static EnhancedActionRateLimiter getRateLimiter() {
-        return rateLimiter;
     }
 }
