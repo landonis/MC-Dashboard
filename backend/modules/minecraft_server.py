@@ -481,42 +481,41 @@ def get_server_journal():
     try:
         # Get query parameters
         lines = request.args.get('lines', 100, type=int)
-        since = request.args.get('since', None)  # ISO timestamp or systemd time format
-        follow = request.args.get('follow', False, type=bool)
-        priority = request.args.get('priority', None)  # err, warning, info, debug
+        since = request.args.get('since', None)
+        priority = request.args.get('priority', None)
         
         # Validate lines parameter (reasonable limits)
-        lines = max(1, min(lines, 2000))  # Between 1 and 2000 lines
+        lines = max(1, min(lines, 2000))
         
-        # Build journalctl command
-        cmd_parts = ["/usr/bin/journalctl", "-u", "minecraft.service", "--no-pager"]
+        # Build journalctl command - following your pattern with explicit paths
+        cmd_parts = ["/bin/sudo", "/usr/bin/journalctl", "-u", "minecraft.service", "--no-pager"]
         
         # Add lines limit
         cmd_parts.extend(["-n", str(lines)])
         
         # Add since parameter if provided
         if since:
-            cmd_parts.extend(["--since", since])
+            cmd_parts.extend(["--since", f'"{since}"'])
         
         # Add priority filter if provided
-        if priority:
+        if priority and priority in ['err', 'warning', 'info', 'debug']:
             priority_map = {
                 'err': '3',
                 'warning': '4', 
                 'info': '6',
                 'debug': '7'
             }
-            if priority in priority_map:
-                cmd_parts.extend(["-p", priority_map[priority]])
+            cmd_parts.extend(["-p", priority_map[priority]])
         
         # Add output format for structured data
         cmd_parts.extend(["--output", "json"])
         
-        # Execute command
+        # Execute command using your run_command method
         cmd = " ".join(cmd_parts)
         result = run_command(cmd)
         
         if not result['success']:
+            logger.error(f"Journal command failed: {result['stderr']}")
             return jsonify({
                 'error': f'Failed to get journal entries: {result["stderr"]}',
                 'entries': []
@@ -524,59 +523,62 @@ def get_server_journal():
         
         # Parse JSON entries
         entries = []
-        for line in result['stdout'].strip().split('\n'):
-            if line.strip():
-                try:
-                    entry = json.loads(line)
-                    # Extract relevant fields
-                    parsed_entry = {
-                        'timestamp': entry.get('__REALTIME_TIMESTAMP', ''),
-                        'message': entry.get('MESSAGE', ''),
-                        'priority': entry.get('PRIORITY', ''),
-                        'unit': entry.get('_SYSTEMD_UNIT', ''),
-                        'pid': entry.get('_PID', ''),
-                        'cursor': entry.get('__CURSOR', '')  # For pagination
-                    }
-                    
-                    # Convert timestamp to readable format
-                    if parsed_entry['timestamp']:
-                        try:
-                            # Convert microseconds to seconds
-                            timestamp_sec = int(parsed_entry['timestamp']) / 1000000
-                            dt = datetime.fromtimestamp(timestamp_sec)
-                            parsed_entry['formatted_time'] = dt.strftime('%Y-%m-%d %H:%M:%S')
-                        except (ValueError, TypeError):
-                            parsed_entry['formatted_time'] = 'Invalid timestamp'
-                    
-                    # Map priority numbers to readable levels
-                    priority_map = {
-                        '0': 'emergency', '1': 'alert', '2': 'critical', '3': 'error',
-                        '4': 'warning', '5': 'notice', '6': 'info', '7': 'debug'
-                    }
-                    parsed_entry['level'] = priority_map.get(parsed_entry['priority'], 'unknown')
-                    
-                    entries.append(parsed_entry)
-                    
-                except json.JSONDecodeError:
-                    # Skip invalid JSON lines
-                    continue
+        if result['stdout'].strip():
+            for line in result['stdout'].strip().split('\n'):
+                if line.strip():
+                    try:
+                        entry = json.loads(line)
+                        # Extract relevant fields
+                        parsed_entry = {
+                            'timestamp': entry.get('__REALTIME_TIMESTAMP', ''),
+                            'message': entry.get('MESSAGE', ''),
+                            'priority': entry.get('PRIORITY', ''),
+                            'unit': entry.get('_SYSTEMD_UNIT', ''),
+                            'pid': entry.get('_PID', ''),
+                            'cursor': entry.get('__CURSOR', '')
+                        }
+                        
+                        # Convert timestamp to readable format
+                        if parsed_entry['timestamp']:
+                            try:
+                                # Convert microseconds to seconds
+                                timestamp_sec = int(parsed_entry['timestamp']) / 1000000
+                                dt = datetime.fromtimestamp(timestamp_sec)
+                                parsed_entry['formatted_time'] = dt.strftime('%Y-%m-%d %H:%M:%S')
+                            except (ValueError, TypeError):
+                                parsed_entry['formatted_time'] = 'Invalid timestamp'
+                        else:
+                            parsed_entry['formatted_time'] = ''
+                        
+                        # Map priority numbers to readable levels
+                        priority_map = {
+                            '0': 'emergency', '1': 'alert', '2': 'critical', '3': 'error',
+                            '4': 'warning', '5': 'notice', '6': 'info', '7': 'debug'
+                        }
+                        parsed_entry['level'] = priority_map.get(parsed_entry['priority'], 'unknown')
+                        
+                        entries.append(parsed_entry)
+                        
+                    except json.JSONDecodeError:
+                        # Skip invalid JSON lines
+                        continue
         
-        # Get total entry count (approximate)
-        count_cmd = "/usr/bin/journalctl -u minecraft.service --no-pager | /usr/bin/wc -l"
+        # Get total entry count (approximate) using run_command
+        count_cmd = f"/bin/sudo /usr/bin/journalctl -u minecraft.service --no-pager | /usr/bin/wc -l"
         count_result = run_command(count_cmd)
         total_entries = 0
-        if count_result['success']:
+        if count_result['success'] and count_result['stdout'].strip():
             try:
                 total_entries = int(count_result['stdout'].strip())
             except ValueError:
-                pass
+                total_entries = 0
         
         return jsonify({
             'entries': entries,
             'total_entries': total_entries,
             'requested_lines': lines,
             'returned_lines': len(entries),
-            'has_more': len(entries) == lines,  # Indicates if there might be more entries
+            'has_more': len(entries) == lines,
             'last_cursor': entries[-1]['cursor'] if entries else None
         })
     
@@ -588,58 +590,72 @@ def get_server_journal():
         }), 500
 
 
-@minecraft_server_bp.route('/journal/stream', methods=['GET'])
-@admin_required 
-def stream_server_journal():
-    """Stream live journal entries (for real-time monitoring)"""
+@minecraft_server_bp.route('/journal/recent', methods=['GET'])
+@admin_required
+def get_recent_journal():
+    """Get most recent journal entries (optimized for auto-refresh)"""
     try:
-        def generate():
-            # Start streaming from journalctl
-            cmd = "/usr/bin/journalctl -u minecraft.service -f --output=json --no-pager"
-            process = subprocess.Popen(
-                cmd,
-                shell=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                bufsize=1,
-                universal_newlines=True
-            )
-            
-            try:
-                for line in iter(process.stdout.readline, ''):
-                    if line.strip():
-                        try:
-                            entry = json.loads(line.strip())
-                            parsed_entry = {
-                                'timestamp': entry.get('__REALTIME_TIMESTAMP', ''),
-                                'message': entry.get('MESSAGE', ''),
-                                'priority': entry.get('PRIORITY', ''),
-                                'unit': entry.get('_SYSTEMD_UNIT', ''),
-                                'pid': entry.get('_PID', ''),
-                            }
-                            
-                            # Convert timestamp
-                            if parsed_entry['timestamp']:
-                                try:
-                                    timestamp_sec = int(parsed_entry['timestamp']) / 1000000
-                                    dt = datetime.fromtimestamp(timestamp_sec)
-                                    parsed_entry['formatted_time'] = dt.strftime('%Y-%m-%d %H:%M:%S')
-                                except (ValueError, TypeError):
-                                    parsed_entry['formatted_time'] = 'Invalid timestamp'
-                            
-                            yield f"data: {json.dumps(parsed_entry)}\n\n"
-                            
-                        except json.JSONDecodeError:
-                            continue
-            finally:
-                process.terminate()
-                
-        return app.response_class(
-            generate(),
-            mimetype='text/plain'  # or 'text/event-stream' for SSE
-        )
+        # Get last 50 entries by default for auto-refresh
+        lines = request.args.get('lines', 50, type=int)
+        lines = max(1, min(lines, 500))  # Limit for performance
         
+        # Simple recent entries command
+        cmd = f"/bin/sudo /usr/bin/journalctl -u minecraft.service --no-pager -n {lines} --output=json"
+        result = run_command(cmd)
+        
+        if not result['success']:
+            logger.error(f"Recent journal command failed: {result['stderr']}")
+            return jsonify({
+                'error': f'Failed to get recent entries: {result["stderr"]}',
+                'entries': []
+            }), 500
+        
+        # Parse entries (same logic as main endpoint)
+        entries = []
+        if result['stdout'].strip():
+            for line in result['stdout'].strip().split('\n'):
+                if line.strip():
+                    try:
+                        entry = json.loads(line)
+                        parsed_entry = {
+                            'timestamp': entry.get('__REALTIME_TIMESTAMP', ''),
+                            'message': entry.get('MESSAGE', ''),
+                            'priority': entry.get('PRIORITY', ''),
+                            'level': '',
+                            'formatted_time': '',
+                            'pid': entry.get('_PID', ''),
+                            'cursor': entry.get('__CURSOR', '')
+                        }
+                        
+                        # Convert timestamp
+                        if parsed_entry['timestamp']:
+                            try:
+                                timestamp_sec = int(parsed_entry['timestamp']) / 1000000
+                                dt = datetime.fromtimestamp(timestamp_sec)
+                                parsed_entry['formatted_time'] = dt.strftime('%Y-%m-%d %H:%M:%S')
+                            except (ValueError, TypeError):
+                                parsed_entry['formatted_time'] = 'Invalid timestamp'
+                        
+                        # Map priority
+                        priority_map = {
+                            '0': 'emergency', '1': 'alert', '2': 'critical', '3': 'error',
+                            '4': 'warning', '5': 'notice', '6': 'info', '7': 'debug'
+                        }
+                        parsed_entry['level'] = priority_map.get(parsed_entry['priority'], 'unknown')
+                        
+                        entries.append(parsed_entry)
+                        
+                    except json.JSONDecodeError:
+                        continue
+        
+        return jsonify({
+            'entries': entries,
+            'returned_lines': len(entries)
+        })
+    
     except Exception as e:
-        logger.error(f"Stream journal error: {str(e)}")
-        return jsonify({'error': f'Failed to stream journal: {str(e)}'}), 500
+        logger.error(f"Get recent journal error: {str(e)}")
+        return jsonify({
+            'error': f'Failed to get recent journal entries: {str(e)}',
+            'entries': []
+        }), 500
