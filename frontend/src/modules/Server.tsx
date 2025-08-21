@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Play, Square, RotateCcw, Settings, Monitor, HardDrive, MemoryStick as Memory, AlertCircle, CheckCircle, Loader2, Terminal, Download } from 'lucide-react'
+import { Play, Square, RotateCcw, Settings, Monitor, HardDrive, MemoryStick as Memory, AlertCircle, CheckCircle, Loader2, Terminal, Download, RefreshCw, Clock, Filter } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import api from '../services/api'
 
@@ -30,6 +30,25 @@ interface Versions {
   fabric_versions: string[]
 }
 
+interface JournalEntry {
+  timestamp: string
+  message: string
+  priority: string
+  level: string
+  formatted_time: string
+  pid: string
+  cursor: string
+}
+
+interface JournalResponse {
+  entries: JournalEntry[]
+  total_entries: number
+  requested_lines: number
+  returned_lines: number
+  has_more: boolean
+  last_cursor: string | null
+}
+
 const Server: React.FC = () => {
   const { hasRole } = useAuth()
   const [status, setStatus] = useState<ServerStatus | null>(null)
@@ -47,12 +66,35 @@ const Server: React.FC = () => {
     memory_gb: 2
   })
 
+  // Journal state
+  const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([])
+  const [journalLoading, setJournalLoading] = useState(false)
+  const [journalError, setJournalError] = useState('')
+  const [journalLines, setJournalLines] = useState(200)
+  const [journalFilter, setJournalFilter] = useState<'all' | 'err' | 'warning' | 'info' | 'debug'>('all')
+  const [autoRefresh, setAutoRefresh] = useState(false)
+  const [showJournalFilters, setShowJournalFilters] = useState(false)
+
   useEffect(() => {
     if (hasRole('admin')) {
       fetchStatus()
       fetchVersions()
+      fetchJournal()
     }
   }, [])
+
+  // Auto-refresh journal when enabled
+  useEffect(() => {
+    let interval: NodeJS.Timeout
+    if (autoRefresh && status?.running) {
+      interval = setInterval(() => {
+        fetchJournal()
+      }, 5000) // Refresh every 5 seconds
+    }
+    return () => {
+      if (interval) clearInterval(interval)
+    }
+  }, [autoRefresh, status?.running])
 
   const fetchStatus = async () => {
     try {
@@ -75,6 +117,30 @@ const Server: React.FC = () => {
     }
   }
 
+  const fetchJournal = async (lines?: number, filter?: string) => {
+    setJournalLoading(true)
+    setJournalError('')
+    
+    try {
+      const params = new URLSearchParams()
+      params.append('lines', (lines || journalLines).toString())
+      if (filter && filter !== 'all') {
+        params.append('priority', filter)
+      } else if (journalFilter !== 'all') {
+        params.append('priority', journalFilter)
+      }
+
+      const response = await api.get(`/api/server/journal?${params}`)
+      const data: JournalResponse = response.data
+      setJournalEntries(data.entries)
+    } catch (error: any) {
+      console.error('Error fetching journal:', error)
+      setJournalError(error.response?.data?.error || 'Failed to fetch journal entries')
+    } finally {
+      setJournalLoading(false)
+    }
+  }
+
   const handleServerAction = async (action: 'start' | 'stop' | 'restart') => {
     setActionLoading(action)
     setError('')
@@ -86,6 +152,8 @@ const Server: React.FC = () => {
       
       // Refresh status after action
       setTimeout(fetchStatus, 2000)
+      // Refresh journal to see action logs
+      setTimeout(() => fetchJournal(), 3000)
     } catch (error: any) {
       setError(error.response?.data?.error || `Failed to ${action} server`)
     } finally {
@@ -138,6 +206,25 @@ const Server: React.FC = () => {
       return `${(mb / 1024).toFixed(2)} GB`
     }
     return `${mb} MB`
+  }
+
+  const getLogLevelColor = (level: string) => {
+    switch (level) {
+      case 'error':
+      case 'critical':
+      case 'alert':
+      case 'emergency':
+        return 'text-red-400'
+      case 'warning':
+        return 'text-yellow-400'
+      case 'info':
+      case 'notice':
+        return 'text-blue-400'
+      case 'debug':
+        return 'text-gray-400'
+      default:
+        return 'text-gray-300'
+    }
   }
 
   if (!hasRole('admin')) {
@@ -396,8 +483,6 @@ const Server: React.FC = () => {
           </div>
         )}
 
-
-        
         {/* Build Log */}
         {buildLog.length > 0 && (
           <div className="mt-4">
@@ -434,7 +519,6 @@ const Server: React.FC = () => {
             </div>
           </div>
         )}
-
       </div>
 
       {/* Server Status Output */}
@@ -444,6 +528,145 @@ const Server: React.FC = () => {
           <div className="bg-gray-900 text-gray-300 p-4 rounded-md font-mono text-sm max-h-64 overflow-y-auto">
             <pre>{status.status_output}</pre>
           </div>
+        </div>
+      )}
+
+      {/* Server Logs */}
+      {status?.server_exists && (
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-3">
+              <Terminal className="h-5 w-5 text-primary-600" />
+              <h3 className="text-lg font-semibold text-gray-900">Server Logs</h3>
+            </div>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setShowJournalFilters(!showJournalFilters)}
+                className="flex items-center space-x-1 px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+              >
+                <Filter className="h-4 w-4" />
+                <span>Filter</span>
+              </button>
+              
+              <button
+                onClick={() => setAutoRefresh(!autoRefresh)}
+                className={`flex items-center space-x-1 px-3 py-1 text-sm rounded-md transition-colors ${
+                  autoRefresh 
+                    ? 'bg-success-100 text-success-700 hover:bg-success-200' 
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <Clock className="h-4 w-4" />
+                <span>Auto</span>
+              </button>
+              
+              <button
+                onClick={() => fetchJournal()}
+                disabled={journalLoading}
+                className="flex items-center space-x-1 px-3 py-1 text-sm bg-primary-100 text-primary-700 rounded-md hover:bg-primary-200 transition-colors disabled:opacity-50"
+              >
+                {journalLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                <span>Refresh</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Journal Filters */}
+          {showJournalFilters && (
+            <div className="mb-4 p-4 bg-gray-50 rounded-md">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Lines to Show
+                  </label>
+                  <select
+                    value={journalLines}
+                    onChange={(e) => {
+                      const lines = parseInt(e.target.value)
+                      setJournalLines(lines)
+                      fetchJournal(lines)
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  >
+                    <option value={50}>50 lines</option>
+                    <option value={100}>100 lines</option>
+                    <option value={200}>200 lines</option>
+                    <option value={500}>500 lines</option>
+                    <option value={1000}>1000 lines</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Log Level
+                  </label>
+                  <select
+                    value={journalFilter}
+                    onChange={(e) => {
+                      const filter = e.target.value as typeof journalFilter
+                      setJournalFilter(filter)
+                      fetchJournal(journalLines, filter)
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  >
+                    <option value="all">All Levels</option>
+                    <option value="err">Error Only</option>
+                    <option value="warning">Warning & Above</option>
+                    <option value="info">Info & Above</option>
+                    <option value="debug">Debug & Above</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Journal Error */}
+          {journalError && (
+            <div className="mb-4 bg-error-50 border border-error-200 text-error-700 px-4 py-3 rounded-md">
+              <div className="flex items-center">
+                <AlertCircle className="h-5 w-5 mr-2" />
+                {journalError}
+              </div>
+            </div>
+          )}
+
+          {/* Journal Entries */}
+          <div className="bg-gray-900 text-gray-300 p-4 rounded-md font-mono text-sm max-h-96 overflow-y-auto">
+            {journalLoading && journalEntries.length === 0 ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-primary-400 mr-2" />
+                <span>Loading journal entries...</span>
+              </div>
+            ) : journalEntries.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                No journal entries found
+              </div>
+            ) : (
+              journalEntries.map((entry, index) => (
+                <div key={`${entry.cursor}-${index}`} className="mb-1 leading-relaxed">
+                  <span className="text-gray-500">[{entry.formatted_time}]</span>
+                  <span className={`ml-2 font-medium ${getLogLevelColor(entry.level)}`}>
+                    {entry.level.toUpperCase()}
+                  </span>
+                  <span className="ml-2 text-gray-300">{entry.message}</span>
+                </div>
+              ))
+            )}
+          </div>
+          
+          {/* Journal Info */}
+          {journalEntries.length > 0 && (
+            <div className="mt-2 text-sm text-gray-500 flex justify-between">
+              <span>Showing {journalEntries.length} entries</span>
+              {autoRefresh && status?.running && (
+                <span className="text-success-600">Auto-refreshing every 5s</span>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
