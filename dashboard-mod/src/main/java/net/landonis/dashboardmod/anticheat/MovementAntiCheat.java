@@ -1,75 +1,4 @@
-private double getMaxAllowedSpeed(ServerPlayerEntity player) {
-        double baseSpeed = player.isSprinting() ? MAX_SPRINT_SPEED : MAX_WALK_SPEED;
-
-        // Status effect modifications with safety checks
-        try {
-            if (player.hasStatusEffect(StatusEffects.SPEED)) {
-                int amplifier = player.getStatusEffect(StatusEffects.SPEED).getAmplifier() + 1;
-                baseSpeed *= (1.0 + 0.2 * Math.min(amplifier, 10)); // Cap amplifier
-            }
-            if (player.hasStatusEffect(StatusEffects.SLOWNESS)) {
-                int amplifier = player.getStatusEffect(StatusEffects.SLOWNESS).getAmplifier() + 1;
-                baseSpeed *= (1.0 - 0.15 * Math.min(amplifier, 10)); // Cap amplifier
-            }
-        } catch (Exception e) {
-            // Fallback if status effect queries fail
-        }
-
-        if    private double getMaxJumpHeight(ServerPlayerEntity player, Vec3d startPos) {
-        ServerWorld world = player.getWorld();
-        BlockPos startBlock = BlockPos.ofFloored(startPos.x, startPos.y, startPos.z);
-        
-        // Base jump height - normal player can jump ~1.25 blocks
-        double maxHeight = 1.3;
-        
-        if (player.hasStatusEffect(StatusEffects.JUMP_BOOST)) {
-            int amplifier = player.getStatusEffect(StatusEffects.JUMP_BOOST).getAmplifier() + 1;
-            maxHeight += 0.5 * amplifier; // Each level adds ~0.5 blocks
-        }
-        
-        // Check for barriers around starting position that should limit jump height
-        boolean hasBarrier = false;
-        double barrierHeight = 0;
-        
-        // Check 3x3 area around starting position
-        for (int x = -1; x <= 1; x++) {
-            for (int z = -1; z <= 1; z++) {
-                BlockPos checkPos = startBlock.add(x, 0, z);
-                Block block = world.getBlockState(checkPos).getBlock();
-                
-                // Fences and walls - should limit jump to ~1.5 blocks
-                if (block instanceof FenceBlock || block instanceof WallBlock) {
-                    hasBarrier = true;
-                    barrierHeight = Math.max(barrierHeight, 1.5);
-                }
-                
-                // Check for trapdoors on top of blocks
-                BlockPos abovePos = checkPos.up();
-                Block aboveBlock = world.getBlockState(abovePos).getBlock();
-                if (aboveBlock instanceof net.minecraft.block.TrapdoorBlock) {
-                    BlockState trapdoorState = world.getBlockState(abovePos);
-                    try {
-                        boolean isOpen = trapdoorState.get(net.minecraft.block.TrapdoorBlock.OPEN);
-                        boolean isTop = trapdoorState.get(net.minecraft.block.TrapdoorBlock.HALF) == net.minecraft.block.enums.BlockHalf.TOP;
-                        
-                        if (!isOpen && isTop) {
-                            hasBarrier = true;
-                            barrierHeight = Math.max(barrierHeight, 1.9); // Block + trapdoor
-                        }
-                    } catch (Exception e) {
-                        // Ignore property errors
-                    }
-                }
-            }
-        }
-        
-        // If there's a barrier, limit jump height to slightly above it
-        if (hasBarrier) {
-            maxHeight = Math.min(maxHeight, barrierHeight + 0.2);
-        }
-        
-        return maxHeight;
-    }package net.landonis.dashboardmod.anticheat;
+package net.landonis.dashboardmod.anticheat;
 
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -380,6 +309,62 @@ public class MovementAntiCheat {
         return false;
     }
 
+    private double getMaxJumpHeight(ServerPlayerEntity player, Vec3d startPos) {
+        ServerWorld world = player.getWorld();
+        BlockPos startBlock = BlockPos.ofFloored(startPos.x, startPos.y, startPos.z);
+        
+        // Base jump height - normal player can jump ~1.25 blocks
+        double maxHeight = 1.3;
+        
+        if (player.hasStatusEffect(StatusEffects.JUMP_BOOST)) {
+            int amplifier = player.getStatusEffect(StatusEffects.JUMP_BOOST).getAmplifier() + 1;
+            maxHeight += 0.5 * amplifier; // Each level adds ~0.5 blocks
+        }
+        
+        // Check for barriers around starting position that should limit jump height
+        boolean hasBarrier = false;
+        double barrierHeight = 0;
+        
+        // Check 3x3 area around starting position
+        for (int x = -1; x <= 1; x++) {
+            for (int z = -1; z <= 1; z++) {
+                BlockPos checkPos = startBlock.add(x, 0, z);
+                Block block = world.getBlockState(checkPos).getBlock();
+                
+                // Fences and walls - should limit jump to ~1.5 blocks
+                if (block instanceof FenceBlock || block instanceof WallBlock) {
+                    hasBarrier = true;
+                    barrierHeight = Math.max(barrierHeight, 1.5);
+                }
+                
+                // Check for trapdoors on top of blocks
+                BlockPos abovePos = checkPos.up();
+                Block aboveBlock = world.getBlockState(abovePos).getBlock();
+                if (aboveBlock instanceof net.minecraft.block.TrapdoorBlock) {
+                    BlockState trapdoorState = world.getBlockState(abovePos);
+                    try {
+                        boolean isOpen = trapdoorState.get(net.minecraft.block.TrapdoorBlock.OPEN);
+                        boolean isTop = trapdoorState.get(net.minecraft.block.TrapdoorBlock.HALF) == net.minecraft.block.enums.BlockHalf.TOP;
+                        
+                        if (!isOpen && isTop) {
+                            hasBarrier = true;
+                            barrierHeight = Math.max(barrierHeight, 1.9); // Block + trapdoor
+                        }
+                    } catch (Exception e) {
+                        // Ignore property errors
+                    }
+                }
+            }
+        }
+        
+        // If there's a barrier, limit jump height to slightly above it
+        if (hasBarrier) {
+            maxHeight = Math.min(maxHeight, barrierHeight + 0.2);
+        }
+        
+        return maxHeight;
+    }
+
     private boolean checkPhaseViolation(ServerPlayerEntity player, Vec3d fromPos, Vec3d toPos,
                                        BlockContext fromContext, BlockContext toContext) {
         if (player.isSpectator()) return false;
@@ -423,20 +408,6 @@ public class MovementAntiCheat {
         return false;
     }
 
-    private boolean checkGroundStateViolation(ServerPlayerEntity player, PlayerMovementData data,
-                                             BlockContext toContext) {
-        boolean playerOnGround = player.isOnGround();
-        
-        if (!toContext.isValidGroundState(playerOnGround)) {
-            recordViolation(data, player, String.format(
-                "Invalid ground state: player=%s, context=%s", 
-                playerOnGround, getContextDescription(toContext)));
-            return true;
-        }
-
-        return false;
-    }
-
     private boolean checkJesusViolation(ServerPlayerEntity player, Vec3d position, BlockContext context) {
         if (player.getAbilities().allowFlying || player.isGliding()) return false;
         if (player.hasStatusEffect(StatusEffects.WATER_BREATHING)) return false;
@@ -457,62 +428,8 @@ public class MovementAntiCheat {
         return false;
     }
 
-    private boolean checkObstructionViolation(ServerPlayerEntity player, PlayerMovementData data,
-                                             Vec3d movement, BlockContext fromContext, BlockContext toContext) {
-        // Check for impossible movements through blocks - be more lenient
-        if (movement.length() > 0.3) { // Increased threshold
-            // If moving horizontally through what should be solid obstructions
-            double horizontalMovement = Math.sqrt(movement.x * movement.x + movement.z * movement.z);
-            if (horizontalMovement > 0.3 && toContext.hasObstructions && !toContext.inWater && !toContext.hasClimbable) {
-                // Allow if player can legitimately pass through (e.g., doors, gaps)
-                if (!canPassThrough(player, fromContext, toContext)) {
-                    recordViolation(data, player, "Movement through solid obstructions");
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
-
-    private boolean canPassThrough(ServerPlayerEntity player, BlockContext from, BlockContext to) {
-        // Check if movement is through legitimate openings
-        for (Block block : to.supportingBlocks) {
-            if (block instanceof net.minecraft.block.DoorBlock ||
-                block instanceof net.minecraft.block.FenceGateBlock ||
-                block instanceof net.minecraft.block.TrapdoorBlock) {
-                return true; // Can pass through doors/gates
-            }
-        }
-        return false;
-    }
-
-    private boolean isOnIce(BlockContext context) {
-        return context.supportingBlocks.contains(Blocks.ICE) ||
-               context.supportingBlocks.contains(Blocks.PACKED_ICE) ||
-               context.supportingBlocks.contains(Blocks.BLUE_ICE);
-    }
-
-    private String getContextDescription(BlockContext context) {
-        StringBuilder desc = new StringBuilder();
-        if (context.onSolidGround) desc.append("ground,");
-        if (context.inWater) desc.append("water,");
-        if (context.hasClimbable) desc.append("climb,");
-        if (context.hasObstructions) desc.append("blocked,");
-        return desc.length() > 0 ? desc.substring(0, desc.length() - 1) : "air";
-    }
-
-    private double getMaxAllowedSpeed(ServerPlayerEntity player, BlockContext context) {
+    private double getMaxAllowedSpeed(ServerPlayerEntity player) {
         double baseSpeed = player.isSprinting() ? MAX_SPRINT_SPEED : MAX_WALK_SPEED;
-
-        // Context-based speed modifications
-        if (context.inWater && !player.hasStatusEffect(StatusEffects.DOLPHINS_GRACE)) {
-            baseSpeed *= 0.4; // Slower in water
-        } else if (context.inLava) {
-            baseSpeed *= 0.2; // Much slower in lava
-        } else if (isOnIce(context)) {
-            baseSpeed *= 1.3; // Faster on ice
-        }
 
         // Status effect modifications with safety checks
         try {
