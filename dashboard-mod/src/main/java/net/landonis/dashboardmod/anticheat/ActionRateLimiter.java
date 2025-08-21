@@ -20,26 +20,26 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class ActionRateLimiter {
     
-    // Base cooldowns (more lenient for context-aware detection)
-    private static final long BLOCK_BREAK_COOLDOWN = 25; // Slightly more lenient than before
-    private static final long BLOCK_PLACE_COOLDOWN = 50;
-    private static final long ITEM_USE_COOLDOWN = 75; // Compromise between old harsh and new lenient
-    private static final long ATTACK_COOLDOWN = 200;
-    private static final int MAX_ACTIONS_PER_SECOND = 35;
+    // Base cooldowns (realistic for legitimate gameplay)
+    private static final long BLOCK_BREAK_COOLDOWN = 50; // 50ms = 20 blocks/second max
+    private static final long BLOCK_PLACE_COOLDOWN = 75; // 75ms = 13 blocks/second max  
+    private static final long ITEM_USE_COOLDOWN = 100; // 100ms = 10 items/second max
+    private static final long ATTACK_COOLDOWN = 250; // 250ms = 4 attacks/second max
+    private static final int MAX_ACTIONS_PER_SECOND = 25; // More conservative overall limit
     
-    // Context-specific allowances
-    private static final long DOOR_INTERACTION_COOLDOWN = 15; // Very fast door opening allowed
-    private static final long ANIMAL_FEEDING_COOLDOWN = 30; // Fast animal feeding allowed
-    private static final int MAX_SEQUENTIAL_FEEDS = 15; // Max animals fed in sequence
-    private static final long FEED_SEQUENCE_TIMEOUT = 5000; // 5 seconds
+    // Context-specific allowances (account for 0-4ms natural timing)
+    private static final long DOOR_INTERACTION_COOLDOWN = 50; // Allow reasonable door speed
+    private static final long ANIMAL_FEEDING_COOLDOWN = 100; // 100ms between feeds is very fast but fair
+    private static final int MAX_SEQUENTIAL_FEEDS = 20; // Allow feeding more animals
+    private static final long FEED_SEQUENCE_TIMEOUT = 8000; // 8 seconds for feeding session
     
-    // Violation thresholds
-    private static final int MAX_VIOLATIONS_BEFORE_KICK = 15;
-    private static final long VIOLATION_DECAY_TIME = 30000; // 30 seconds
+    // Violation thresholds (more forgiving)
+    private static final int MAX_VIOLATIONS_BEFORE_KICK = 25; // Higher threshold
+    private static final long VIOLATION_DECAY_TIME = 20000; // 20 seconds faster decay
     private static final long CLEANUP_INTERVAL = 300000; // 5 minutes
     
-    // Suspicious pattern detection
-    private static final int SUSPICIOUS_RAPID_ACTIONS = 45; // Actions per second that's clearly suspicious
+    // Suspicious pattern detection (target actual cheats, not fast legitimate play)
+    private static final int SUSPICIOUS_RAPID_ACTIONS = 60; // 60 actions in 3 seconds = clearly impossible
     private static final long PATTERN_DETECTION_WINDOW = 3000; // 3 seconds
     
     // Player tracking data
@@ -128,7 +128,7 @@ public class ActionRateLimiter {
         
         // Allow faster breaking for certain blocks (like crops)
         if (block != null && isHarvestableBlock(block)) {
-            cooldown = BLOCK_BREAK_COOLDOWN / 2;
+            cooldown = 25; // Fixed 25ms for crops regardless of base cooldown
         }
         
         // Check cooldown
@@ -254,7 +254,7 @@ public class ActionRateLimiter {
         long currentTime = System.currentTimeMillis();
         
         // More lenient for PvE, stricter for PvP
-        long cooldown = (target instanceof ServerPlayerEntity) ? ATTACK_COOLDOWN : ATTACK_COOLDOWN / 2;
+        long cooldown = (target instanceof ServerPlayerEntity) ? ATTACK_COOLDOWN : 150; // 150ms for PvE
         
         if (detectSuspiciousPattern(data, currentTime)) {
             recordViolation(data, player, "Suspicious rapid attack pattern detected");
@@ -315,8 +315,8 @@ public class ActionRateLimiter {
         // Same door - allow reasonable interaction speed but warn if too fast
         if (currentTime - data.lastDoorInteraction < DOOR_INTERACTION_COOLDOWN) {
             // Only warn for excessive door spam, but still allow the action
-            if (data.violationCount < 3) {
-                recordViolation(data, player, "Very rapid door interaction");
+            if (currentTime - data.lastDoorInteraction < 25) { // Only trigger if under 25ms
+                recordViolation(data, player, "Very rapid door interaction: " + (currentTime - data.lastDoorInteraction) + "ms");
             }
             return true; // Still allow the action
         }
