@@ -203,13 +203,18 @@ public class MovementAntiCheat {
             }
         }
 
-        // Enhanced validation with block context
-        if (checkSpeedViolation(player, data, horizontalDistance, verticalDistance, fromContext, toContext)) return false;
-        if (checkFlyViolation(player, data, verticalDistance, fromContext, toContext)) return false;
-        if (checkPhaseViolation(player, fromPos, toPos, fromContext, toContext)) return false;
-        if (checkGroundStateViolation(player, data, toContext)) return false;
-        if (checkJesusViolation(player, toPos, toContext)) return false;
-        if (checkObstructionViolation(player, data, movement, fromContext, toContext)) return false;
+        // Enhanced validation with block context - only check if significant movement
+        if (distance > 0.05) { // Only validate significant movements
+            if (checkSpeedViolation(player, data, horizontalDistance, verticalDistance, fromContext, toContext)) return false;
+            if (checkFlyViolation(player, data, verticalDistance, fromContext, toContext)) return false;
+            if (distance > 0.2 && checkPhaseViolation(player, fromPos, toPos, fromContext, toContext)) return false;
+        }
+        
+        // Less strict checks for all movements
+        if (distance > 0.1) {
+            if (checkJesusViolation(player, toPos, toContext)) return false;
+            if (checkObstructionViolation(player, data, movement, fromContext, toContext)) return false;
+        }
 
         data.lastValidPosition = toPos;
         data.lastVelocity = movement;
@@ -222,11 +227,11 @@ public class MovementAntiCheat {
     private boolean checkSpeedViolation(ServerPlayerEntity player, PlayerMovementData data,
                                        double horizontalDistance, double verticalDistance,
                                        BlockContext fromContext, BlockContext toContext) {
-        double maxSpeed = getMaxAllowedSpeed(player, toContext) * LAG_COMPENSATION_MULTIPLIER;
+        double maxSpeed = getMaxAllowedSpeed(player, toContext) * LAG_COMPENSATION_MULTIPLIER * 1.5; // More lenient
 
         // Reduce speed limit if moving through obstructions
         if (toContext.hasObstructions && !player.getAbilities().allowFlying) {
-            maxSpeed *= 0.7; // Reduce speed when obstructed
+            maxSpeed *= 0.9; // Less restrictive when obstructed
         }
 
         // Allow higher speed when falling or on ice
@@ -270,9 +275,9 @@ public class MovementAntiCheat {
             maxVertical += 0.1 * amplifier;
         }
 
-        // Allow extra vertical movement when stepping up
-        if (toContext.maxStepHeight > 0 && verticalDistance <= toContext.maxStepHeight + 0.3) {
-            return false; // Valid step up
+        // Allow extra vertical movement when stepping up - be more lenient
+        if (toContext.maxStepHeight > 0 && verticalDistance <= toContext.maxStepHeight + 0.6) {
+            return false; // Valid step up - increased tolerance
         }
 
         if (verticalDistance > maxVertical * LAG_COMPENSATION_MULTIPLIER) {
@@ -304,8 +309,11 @@ public class MovementAntiCheat {
                                        BlockContext fromContext, BlockContext toContext) {
         if (player.isSpectator()) return false;
 
-        // Quick check: if destination has obstructions, likely phasing
-        if (toContext.hasObstructions && !player.getAbilities().allowFlying) {
+        // Be much more lenient - only check for obvious phasing
+        if (distance < 0.5) return false; // Skip check for small movements
+
+        // Quick check: if destination has obstructions, likely phasing - but be more lenient
+        if (toContext.hasObstructions && !player.getAbilities().allowFlying && distance > 1.0) {
             recordViolation(getPlayerData(player.getUuid()), player, 
                 "Phase through solid blocks at destination");
             return true;
@@ -389,11 +397,11 @@ public class MovementAntiCheat {
 
     private boolean checkObstructionViolation(ServerPlayerEntity player, PlayerMovementData data,
                                              Vec3d movement, BlockContext fromContext, BlockContext toContext) {
-        // Check for impossible movements through blocks
-        if (movement.length() > 0.1) {
+        // Check for impossible movements through blocks - be more lenient
+        if (movement.length() > 0.3) { // Increased threshold
             // If moving horizontally through what should be solid obstructions
             double horizontalMovement = Math.sqrt(movement.x * movement.x + movement.z * movement.z);
-            if (horizontalMovement > 0.1 && toContext.hasObstructions && !toContext.inWater) {
+            if (horizontalMovement > 0.3 && toContext.hasObstructions && !toContext.inWater && !toContext.hasClimbable) {
                 // Allow if player can legitimately pass through (e.g., doors, gaps)
                 if (!canPassThrough(player, fromContext, toContext)) {
                     recordViolation(data, player, "Movement through solid obstructions");
@@ -514,15 +522,16 @@ public class MovementAntiCheat {
     }
 
     private void remediate(ServerPlayerEntity player, PlayerMovementData data, String reason) {
-        if (data.violationCount > 3 && data.lastValidPosition != null) {
+        // Be much more lenient with teleporting back
+        if (data.violationCount > 8 && data.lastValidPosition != null) {
             player.requestTeleport(data.lastValidPosition.x, data.lastValidPosition.y, data.lastValidPosition.z);
         }
 
-        if (data.violationCount == 5) {
+        if (data.violationCount == 10) {
             player.sendMessage(net.minecraft.text.Text.of("§6[AntiCheat] §eMovement irregularities detected"));
         }
 
-        if (data.violationCount == 10) {
+        if (data.violationCount == 15) {
             player.sendMessage(net.minecraft.text.Text.of("§c[AntiCheat] §cSuspicious movement patterns detected"));
         }
 
