@@ -24,7 +24,7 @@ public class ActionRateLimiter {
     private static final long BLOCK_BREAK_COOLDOWN = 50; // 50ms = 20 blocks/second max
     private static final long BLOCK_PLACE_COOLDOWN = 75; // 75ms = 13 blocks/second max  
     private static final long ITEM_USE_COOLDOWN = 100; // 100ms = 10 items/second max
-    private static final long ATTACK_COOLDOWN = 250; // 250ms = 4 attacks/second max
+    private static final long ATTACK_COOLDOWN = 75; // Much more lenient - 75ms = 13 attacks/second max
     private static final int MAX_ACTIONS_PER_SECOND = 25; // More conservative overall limit
     
     // Context-specific allowances (account for 0-4ms natural timing)
@@ -253,8 +253,8 @@ public class ActionRateLimiter {
         PlayerActionData data = getPlayerData(playerId);
         long currentTime = System.currentTimeMillis();
         
-        // More lenient for PvE, stricter for PvP
-        long cooldown = (target instanceof ServerPlayerEntity) ? ATTACK_COOLDOWN : 150; // 150ms for PvE
+        // More lenient for PvE, slightly stricter for PvP
+        long cooldown = (target instanceof ServerPlayerEntity) ? 100 : 50; // 100ms PvP, 50ms PvE
         
         if (detectSuspiciousPattern(data, currentTime)) {
             recordViolation(data, player, "Suspicious rapid attack pattern detected");
