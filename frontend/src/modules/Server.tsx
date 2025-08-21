@@ -88,13 +88,13 @@ const Server: React.FC = () => {
     let interval: NodeJS.Timeout
     if (autoRefresh && status?.running) {
       interval = setInterval(() => {
-        fetchJournal()
+        fetchJournal(50, journalFilter, true) // Use recent endpoint with 50 lines
       }, 5000) // Refresh every 5 seconds
     }
     return () => {
       if (interval) clearInterval(interval)
     }
-  }, [autoRefresh, status?.running])
+  }, [autoRefresh, status?.running, journalFilter])
 
   const fetchStatus = async () => {
     try {
@@ -117,7 +117,7 @@ const Server: React.FC = () => {
     }
   }
 
-  const fetchJournal = async (lines?: number, filter?: string) => {
+  const fetchJournal = async (lines?: number, filter?: string, isAutoRefresh?: boolean) => {
     setJournalLoading(true)
     setJournalError('')
     
@@ -130,7 +130,9 @@ const Server: React.FC = () => {
         params.append('priority', journalFilter)
       }
 
-      const response = await api.get(`/api/server/journal?${params}`)
+      // Use the simpler recent endpoint for auto-refresh
+      const endpoint = isAutoRefresh ? '/api/server/journal/recent' : '/api/server/journal'
+      const response = await api.get(`${endpoint}?${params}`)
       const data: JournalResponse = response.data
       setJournalEntries(data.entries)
     } catch (error: any) {
