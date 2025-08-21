@@ -10,6 +10,9 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.passive.AnimalEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.Items;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.ToolItem;
+import net.minecraft.enchantment.Enchantments;
 import net.minecraft.util.Hand;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -126,14 +129,30 @@ public class ActionRateLimiter {
         
         long cooldown = BLOCK_BREAK_COOLDOWN;
         
+        // Get the tool efficiency level
+        ItemStack tool = player.getMainHandStack();
+        int efficiencyLevel = getEfficiencyLevel(tool);
+        
+        // Adjust cooldown based on efficiency enchantment
+        if (efficiencyLevel > 0) {
+            // Efficiency reduces cooldown: 15% per level, minimum 10ms
+            float reduction = 1.0f - (efficiencyLevel * 0.15f);
+            cooldown = Math.max(10, (long)(cooldown * reduction));
+        }
+        
         // Allow faster breaking for certain blocks (like crops)
         if (block != null && isHarvestableBlock(block)) {
-            cooldown = 25; // Fixed 25ms for crops regardless of base cooldown
+            cooldown = Math.min(cooldown, 15); // Even faster for crops, but respect efficiency
+        }
+        
+        // Special case for instant break blocks (like grass, flowers)
+        if (block != null && isInstantBreakBlock(block)) {
+            cooldown = 5; // Very fast for instant break blocks
         }
         
         // Check cooldown
         if (currentTime - data.lastBlockBreak < cooldown) {
-            recordViolation(data, player, "Block break too fast: " + (currentTime - data.lastBlockBreak) + "ms");
+            recordViolation(data, player, "Block break too fast: " + (currentTime - data.lastBlockBreak) + "ms (tool efficiency " + efficiencyLevel + ", required " + cooldown + "ms)");
             return false;
         }
         
@@ -347,6 +366,23 @@ public class ActionRateLimiter {
         return blockName.contains("crop") || blockName.contains("wheat") || 
                blockName.contains("carrot") || blockName.contains("potato") ||
                blockName.contains("beetroot") || blockName.contains("berry");
+    }
+    
+    private boolean isInstantBreakBlock(Block block) {
+        String blockName = block.getTranslationKey().toLowerCase();
+        return blockName.contains("grass") || blockName.contains("flower") || 
+               blockName.contains("sapling") || blockName.contains("mushroom") ||
+               blockName.contains("torch") || blockName.contains("redstone_wire");
+    }
+    
+    private int getEfficiencyLevel(ItemStack tool) {
+        if (tool == null || tool.isEmpty()) return 0;
+        
+        // Check if it's a tool that can have efficiency
+        if (!(tool.getItem() instanceof ToolItem)) return 0;
+        
+        // Get efficiency enchantment level
+        return tool.getEnchantments().getLevel(Enchantments.EFFICIENCY);
     }
     
     /**
