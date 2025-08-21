@@ -327,7 +327,7 @@ public class MovementAntiCheat {
                 Box checkBox = playerBox.offset(checkPos.subtract(fromPos));
 
                 // Check if player box intersects solid blocks
-                BlockPos blockPos = BlockPos.ofFloored(checkPos);
+                BlockPos blockPos = BlockPos.ofFloored(checkPos.x, checkPos.y, checkPos.z);
                 for (int x = -1; x <= 1; x++) {
                     for (int y = 0; y <= 2; y++) {
                         for (int z = -1; z <= 1; z++) {
@@ -374,7 +374,7 @@ public class MovementAntiCheat {
         // Enhanced Jesus detection
         if (context.inWater && player.isOnGround() && !player.isSwimming()) {
             // Check if actually on water surface
-            BlockPos pos = BlockPos.ofFloored(position);
+            BlockPos pos = BlockPos.ofFloored(position.x, position.y, position.z);
             ServerWorld world = player.getWorld();
             
             if (world.getBlockState(pos.down()).getBlock() == Blocks.WATER &&
@@ -410,7 +410,7 @@ public class MovementAntiCheat {
         for (Block block : to.supportingBlocks) {
             if (block instanceof net.minecraft.block.DoorBlock ||
                 block instanceof net.minecraft.block.FenceGateBlock ||
-                block instanceof net.minecraft.block.TrapDoorBlock) {
+                block instanceof net.minecraft.block.TrapdoorBlock) {
                 return true; // Can pass through doors/gates
             }
         }
