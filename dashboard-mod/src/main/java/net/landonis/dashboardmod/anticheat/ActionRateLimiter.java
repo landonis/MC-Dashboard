@@ -11,7 +11,6 @@ import net.minecraft.entity.passive.AnimalEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.Items;
 import net.minecraft.item.ItemStack;
-import net.minecraft.item.MiningToolItem;
 import net.minecraft.enchantment.Enchantments;
 import net.minecraft.util.Hand;
 import java.util.*;
@@ -378,11 +377,22 @@ public class ActionRateLimiter {
     private int getEfficiencyLevel(ItemStack tool) {
         if (tool == null || tool.isEmpty()) return 0;
         
-        // Check if it's a tool that can have efficiency (mining tools like pickaxe, shovel, axe, hoe)
-        if (!(tool.getItem() instanceof MiningToolItem)) return 0;
+        // Check if it's a tool that can have efficiency by checking the item type
+        Item item = tool.getItem();
+        if (item == Items.DIAMOND_PICKAXE || item == Items.IRON_PICKAXE || item == Items.GOLDEN_PICKAXE || 
+            item == Items.STONE_PICKAXE || item == Items.WOODEN_PICKAXE || item == Items.NETHERITE_PICKAXE ||
+            item == Items.DIAMOND_SHOVEL || item == Items.IRON_SHOVEL || item == Items.GOLDEN_SHOVEL ||
+            item == Items.STONE_SHOVEL || item == Items.WOODEN_SHOVEL || item == Items.NETHERITE_SHOVEL ||
+            item == Items.DIAMOND_AXE || item == Items.IRON_AXE || item == Items.GOLDEN_AXE ||
+            item == Items.STONE_AXE || item == Items.WOODEN_AXE || item == Items.NETHERITE_AXE ||
+            item == Items.DIAMOND_HOE || item == Items.IRON_HOE || item == Items.GOLDEN_HOE ||
+            item == Items.STONE_HOE || item == Items.WOODEN_HOE || item == Items.NETHERITE_HOE) {
+            
+            // Get efficiency enchantment level
+            return tool.getEnchantments().getLevel(Enchantments.EFFICIENCY);
+        }
         
-        // Get efficiency enchantment level
-        return tool.getEnchantments().getLevel(Enchantments.EFFICIENCY);
+        return 0;
     }
     
     /**
