@@ -334,6 +334,11 @@ public class ActionRateLimiter {
         PlayerActionData data = getPlayerData(playerId);
         long currentTime = System.currentTimeMillis();
         
+        // Reset bucket sequence if using non-bucket items (like opening chests)
+        if (item == null || !CONSTRUCTION_ITEMS.contains(item)) {
+            resetBucketSequence(data, currentTime);
+        }
+        
         // Position validation for block-targeted item usage
         BlockPos targetPos = null;
         if (targetEntity == null) {
@@ -408,9 +413,10 @@ public class ActionRateLimiter {
             }
         }
         
-        int recentActions = data.countRecentActions(currentTime, 1000);
-        if (recentActions > MAX_ACTIONS_PER_SECOND * 2) {
-            recordViolation(data, player, "Too many bucket actions per second: " + recentActions);
+        // Use separate action rate for buckets to avoid interfering with other actions
+        int recentBucketActions = countRecentBucketActions(data, currentTime);
+        if (recentBucketActions > MAX_ACTIONS_PER_SECOND) {
+            recordViolation(data, player, "Too many bucket actions per second: " + recentBucketActions);
             return false;
         }
         
@@ -420,6 +426,31 @@ public class ActionRateLimiter {
         data.addAction(currentTime);
         
         return true;
+    }
+    
+    /**
+     * Helper method to reset bucket sequence when doing non-bucket actions
+     */
+    private void resetBucketSequence(PlayerActionData data, long currentTime) {
+        // Only reset if it's been a reasonable time since last bucket use
+        if (currentTime - data.lastBucketUse > 2000) { // 2 seconds
+            data.sequentialBucketUses = 0;
+            data.lastBucketPos = null;
+        }
+    }
+    
+    /**
+     * Count recent bucket actions specifically (to separate from general actions)
+     */
+    private int countRecentBucketActions(PlayerActionData data, long currentTime) {
+        if (data.sequentialBucketUses == 0) return 0;
+        
+        // Simple approximation: if we're in an active bucket sequence, estimate rate
+        long timeSinceFirstBucket = currentTime - (data.lastBucketUse - (data.sequentialBucketUses * BUCKET_USE_COOLDOWN));
+        if (timeSinceFirstBucket <= 1000) { // Within last second
+            return data.sequentialBucketUses;
+        }
+        return 0;
     }
     
     /**
@@ -435,6 +466,9 @@ public class ActionRateLimiter {
         PlayerActionData data = getPlayerData(playerId);
         long currentTime = System.currentTimeMillis();
         
+        // Reset bucket sequence when interacting with blocks (like chests, crafting tables)
+        resetBucketSequence(data, currentTime);
+        
         // Position validation
         if (!validatePosition(player, pos, data, "block interaction")) {
             return false;
@@ -444,7 +478,21 @@ public class ActionRateLimiter {
             return handleDoorInteraction(data, player, pos, currentTime);
         }
         
-        return canUseItem(player, null, Hand.MAIN_HAND, null);
+        // Use a more lenient cooldown for block interactions (chests, etc.)
+        if (currentTime - data.lastItemUse < 10) { // Very fast for block interactions
+            recordViolation(data, player, "Block interaction too fast: " + (currentTime - data.lastItemUse) + "ms");
+            return false;
+        }
+        
+        if (!checkActionRate(data, currentTime)) {
+            recordViolation(data, player, "Too many actions per second: " + countRecentActions(data, currentTime));
+            return false;
+        }
+        
+        data.lastItemUse = currentTime;
+        data.addAction(currentTime);
+        
+        return true;
     }
     
     /**
