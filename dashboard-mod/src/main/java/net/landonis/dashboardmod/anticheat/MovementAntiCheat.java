@@ -36,7 +36,7 @@ public class MovementAntiCheat {
     private static final int MAX_VIOLATIONS_BEFORE_KICK = 20;
     private static final double LAG_COMPENSATION_MULTIPLIER = 1.3;
     private static final double MOUNT_SPEED_MULTIPLIER = 3.0; // Horses can be 3x faster than walking
-    private static final long MOUNT_TRANSITION_GRACE = 1000; // 1 second grace period
+    private static final long MOUNT_TRANSITION_GRACE = 2500; // 1 second grace period
     
     private final Map<UUID, PlayerMovementData> playerData = new ConcurrentHashMap<>();
 
@@ -299,7 +299,7 @@ public class MovementAntiCheat {
                 ": base=" + String.format("%.3f", baseMaxSpeed) + 
                 ", mounted=" + String.format("%.3f", maxSpeed));
         } else if (inMountTransition) {
-            maxSpeed *= 2.0; // Be lenient during mounting/dismounting
+            maxSpeed *= 10.0; // Be lenient during mounting/dismounting
             System.out.println("[AntiCheat DEBUG] Mount transition speed adjustment for " + player.getName().getString() + 
                 ": base=" + String.format("%.3f", baseMaxSpeed) + 
                 ", transition=" + String.format("%.3f", maxSpeed) + 
