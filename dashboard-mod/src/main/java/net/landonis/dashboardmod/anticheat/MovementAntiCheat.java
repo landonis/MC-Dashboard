@@ -15,6 +15,7 @@ import net.minecraft.block.FenceBlock;
 import net.minecraft.block.WallBlock;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.entity.Entity;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -189,12 +190,10 @@ public class MovementAntiCheat {
             
             // Additional debug checks
             Entity vehicle = null;
-            boolean isPassenger = false;
             String vehicleType = "none";
             
             try {
                 vehicle = player.getVehicle();
-                isPassenger = player.isPassenger();
                 if (vehicle != null) {
                     vehicleType = vehicle.getClass().getSimpleName();
                 }
@@ -205,7 +204,6 @@ public class MovementAntiCheat {
             // Debug logging
             System.out.println("[AntiCheat DEBUG] Mount check for " + player.getName().getString() + 
                 ": hasVehicle=" + hasVehicle + 
-                ", isPassenger=" + isPassenger + 
                 ", vehicle=" + (vehicle != null ? vehicleType : "null"));
                 
             return hasVehicle;
@@ -333,7 +331,6 @@ public class MovementAntiCheat {
         return false;
     }
     
-    // Also add this debug version of getMaxAllowedSpeed to see what base speeds are calculated:
     private double getMaxAllowedSpeed(ServerPlayerEntity player) {
         double baseSpeed = player.isSprinting() ? MAX_SPRINT_SPEED : MAX_WALK_SPEED;
         double originalBaseSpeed = baseSpeed;
@@ -374,7 +371,6 @@ public class MovementAntiCheat {
         
         return finalSpeed;
     }
-
     private boolean checkVerticalViolation(ServerPlayerEntity player, PlayerMovementData data,
                                            double verticalDistance, BlockContext fromContext, BlockContext toContext) {
         if (player.getAbilities().allowFlying || player.isGliding()) return false;
@@ -606,33 +602,7 @@ public class MovementAntiCheat {
         return false;
     }
 
-    private double getMaxAllowedSpeed(ServerPlayerEntity player) {
-        double baseSpeed = player.isSprinting() ? MAX_SPRINT_SPEED : MAX_WALK_SPEED;
 
-        // Status effect modifications with safety checks
-        try {
-            if (player.hasStatusEffect(StatusEffects.SPEED)) {
-                int amplifier = player.getStatusEffect(StatusEffects.SPEED).getAmplifier() + 1;
-                baseSpeed *= (1.0 + 0.2 * Math.min(amplifier, 10)); // Cap amplifier
-            }
-            if (player.hasStatusEffect(StatusEffects.SLOWNESS)) {
-                int amplifier = player.getStatusEffect(StatusEffects.SLOWNESS).getAmplifier() + 1;
-                baseSpeed *= (1.0 - 0.15 * Math.min(amplifier, 10)); // Cap amplifier
-            }
-        } catch (Exception e) {
-            // Fallback if status effect queries fail
-        }
-
-        if (player.isCreative() || player.isSpectator()) {
-            try {
-                baseSpeed = player.getAbilities().getFlySpeed() * 20;
-            } catch (Exception e) {
-                baseSpeed = MAX_FLY_SPEED * 20; // Fallback
-            }
-        }
-
-        return Math.max(baseSpeed, 0.01);
-    }
 
     private double calculateAverageSpeed(PlayerMovementData data, int samples) {
         if (data.positionHistory.size() < samples) return 0;
