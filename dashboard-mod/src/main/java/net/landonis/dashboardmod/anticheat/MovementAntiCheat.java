@@ -289,12 +289,12 @@ public class MovementAntiCheat {
         double maxSpeed = baseMaxSpeed;
     
         // Apply mount speed adjustments with debug logging
-        if (currentlyMounted) {
-            maxSpeed *= MOUNT_SPEED_MULTIPLIER; // Allow much faster speeds on mounts
-        } else if (inMountTransition) {
+        if (inMountTransition) {
             maxSpeed *= 20.0; // Be lenient during mounting/dismounting
+        } else if (currentlyMounted) {
+            maxSpeed *= MOUNT_SPEED_MULTIPLIER; // Allow much faster speeds on mounts
         }
-            
+        
         if (horizontalDistance > maxSpeed) {
                     // Debug speed check
             System.out.println("[AntiCheat DEBUG] Speed check for " + player.getName().getString() + 
@@ -356,56 +356,71 @@ public class MovementAntiCheat {
         
         return finalSpeed;
     }
-    private boolean checkVerticalViolation(ServerPlayerEntity player, PlayerMovementData data,
-                                           double verticalDistance, BlockContext fromContext, BlockContext toContext) {
-        if (player.getAbilities().allowFlying || player.isGliding()) return false;
-        if (toContext.inWater || toContext.inLava || toContext.hasClimbable) return false;
+private boolean checkVerticalViolation(ServerPlayerEntity player, PlayerMovementData data,
+                                       double verticalDistance, BlockContext fromContext, BlockContext toContext) {
+    if (player.getAbilities().allowFlying || player.isGliding()) return false;
+    if (toContext.inWater || toContext.inLava || toContext.hasClimbable) return false;
 
-        // Track jumping for height validation
-        if (!data.wasOnGround && player.isOnGround()) {
-            // Just landed - reset tracking
-            data.airTime = 0;
-            return false;
+    // Add mount checks - skip most vertical validation when mounted
+    boolean currentlyMounted = isPlayerMounted(player);
+    long currentTime = System.currentTimeMillis();
+    boolean inMountTransition = (currentTime - data.lastMountStateChange) < MOUNT_TRANSITION_GRACE;
+    
+    if (currentlyMounted || inMountTransition) {
+        // Allow much more freedom for mounted movement
+        // Only check for extreme impossible vertical speeds
+        if (Math.abs(verticalDistance) > 5.0) { // 5 blocks per tick is clearly impossible even for mounts
+            recordViolation(data, player, String.format("Extreme mounted vertical speed: %.3f", verticalDistance));
+            return true;
         }
-        
-        if (data.wasOnGround && !player.isOnGround() && verticalDistance > 0) {
-            // Just started jumping - track the starting height
-            if (data.lastValidPosition != null) {
-                // We'll check max jump height based on barriers, not step-by-step movement
-                double maxJumpHeight = getMaxJumpHeight(player, data.lastValidPosition);
-                
-                // Only check if they've been in air for a while and gained significant height
-                if (data.airTime > 5) {
-                    double totalHeightGain = toContext.position.y - data.lastValidPosition.y;
-                    if (totalHeightGain > maxJumpHeight) {
-                        recordViolation(data, player, String.format("Jump too high: %.2f > %.2f blocks", 
-                            totalHeightGain, maxJumpHeight));
-                        return true;
-                    }
+        return false; // Skip all other vertical checks when mounted
+    }
+
+    // Track jumping for height validation (only for non-mounted players)
+    if (!data.wasOnGround && player.isOnGround()) {
+        // Just landed - reset tracking
+        data.airTime = 0;
+        return false;
+    }
+    
+    if (data.wasOnGround && !player.isOnGround() && verticalDistance > 0) {
+        // Just started jumping - track the starting height
+        if (data.lastValidPosition != null) {
+            // We'll check max jump height based on barriers, not step-by-step movement
+            double maxJumpHeight = getMaxJumpHeight(player, data.lastValidPosition);
+            
+            // Only check if they've been in air for a while and gained significant height
+            if (data.airTime > 5) {
+                double totalHeightGain = toContext.position.y - data.lastValidPosition.y;
+                if (totalHeightGain > maxJumpHeight) {
+                    recordViolation(data, player, String.format("Jump too high: %.2f > %.2f blocks", 
+                        totalHeightGain, maxJumpHeight));
+                    return true;
                 }
             }
         }
-
-        // Simple fly check - only for extreme vertical speeds
-        double maxVerticalSpeed = 1.5; // Very generous
-        if (player.hasStatusEffect(StatusEffects.JUMP_BOOST)) {
-            int amplifier = player.getStatusEffect(StatusEffects.JUMP_BOOST).getAmplifier() + 1;
-            maxVerticalSpeed += 0.3 * amplifier;
-        }
-
-        if (verticalDistance > maxVerticalSpeed) {
-            recordViolation(data, player, String.format("Extreme vertical speed: %.3f", verticalDistance));
-            return true;
-        }
-
-        // Simple hovering check - only for extreme cases
-        if (data.airTime > 100 && Math.abs(verticalDistance) < 0.005) {
-            recordViolation(data, player, "Hovering detected");
-            return true;
-        }
-
-        return false;
     }
+
+    // Simple fly check - only for extreme vertical speeds
+    double maxVerticalSpeed = 1.5; // Very generous
+    if (player.hasStatusEffect(StatusEffects.JUMP_BOOST)) {
+        int amplifier = player.getStatusEffect(StatusEffects.JUMP_BOOST).getAmplifier() + 1;
+        maxVerticalSpeed += 0.3 * amplifier;
+    }
+
+    if (verticalDistance > maxVerticalSpeed) {
+        recordViolation(data, player, String.format("Extreme vertical speed: %.3f", verticalDistance));
+        return true;
+    }
+
+    // Simple hovering check - only for extreme cases (and not when mounted!)
+    if (data.airTime > 100 && Math.abs(verticalDistance) < 0.005) {
+        recordViolation(data, player, "Hovering detected");
+        return true;
+    }
+
+    return false;
+}
 
     private double getMaxJumpHeight(ServerPlayerEntity player, Vec3d startPos) {
         ServerWorld world = player.getWorld();
