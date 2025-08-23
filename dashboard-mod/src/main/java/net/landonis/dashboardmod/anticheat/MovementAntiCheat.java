@@ -26,8 +26,8 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class MovementAntiCheat {
 
-    private static final double MAX_WALK_SPEED = 0.32;
-    private static final double MAX_SPRINT_SPEED = 0.43;
+    private static final double MAX_WALK_SPEED = 1.5;
+    private static final double MAX_SPRINT_SPEED = 1.8;
     private static final double MAX_FLY_SPEED = 0.15;
     private static final double MAX_VERTICAL_SPEED = 0.8;
     private static final double TELEPORT_THRESHOLD = 8.0;
@@ -35,7 +35,7 @@ public class MovementAntiCheat {
     private static final long VIOLATION_RESET_TIME = 300_000;
     private static final int MAX_VIOLATIONS_BEFORE_KICK = 20;
     private static final double LAG_COMPENSATION_MULTIPLIER = 1.3;
-    private static final double MOUNT_SPEED_MULTIPLIER = 3.0; // Horses can be 3x faster than walking
+    private static final double MOUNT_SPEED_MULTIPLIER = 5.0;
     private static final long MOUNT_TRANSITION_GRACE = 2500; // 1 second grace period
     
     private final Map<UUID, PlayerMovementData> playerData = new ConcurrentHashMap<>();
@@ -285,12 +285,12 @@ public class MovementAntiCheat {
         boolean inMountTransition = (currentTime - data.lastMountStateChange) < MOUNT_TRANSITION_GRACE;
     
         // Simple speed checking - just max speed + generous wiggle room
-        double baseMaxSpeed = getMaxAllowedSpeed(player) * 2.5; // Very generous for stepping/slabs
+        double baseMaxSpeed = getMaxAllowedSpeed(player); // Very generous for stepping/slabs
         double maxSpeed = baseMaxSpeed;
     
         // Apply mount speed adjustments with debug logging
         if (inMountTransition) {
-            maxSpeed *= 20.0; // Be lenient during mounting/dismounting
+            maxSpeed *= MOUNT_SPEED_MULTIPLIER; // Be lenient during mounting/dismounting
         } else if (currentlyMounted) {
             maxSpeed *= MOUNT_SPEED_MULTIPLIER; // Allow much faster speeds on mounts
         }
