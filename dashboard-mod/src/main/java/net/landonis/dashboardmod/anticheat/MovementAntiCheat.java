@@ -185,8 +185,33 @@ public class MovementAntiCheat {
 
     private boolean isPlayerMounted(ServerPlayerEntity player) {
         try {
-            return player.hasVehicle();
+            boolean hasVehicle = player.hasVehicle();
+            
+            // Additional debug checks
+            Entity vehicle = null;
+            boolean isPassenger = false;
+            String vehicleType = "none";
+            
+            try {
+                vehicle = player.getVehicle();
+                isPassenger = player.isPassenger();
+                if (vehicle != null) {
+                    vehicleType = vehicle.getClass().getSimpleName();
+                }
+            } catch (Exception e) {
+                // Ignore secondary checks if they fail
+            }
+            
+            // Debug logging
+            System.out.println("[AntiCheat DEBUG] Mount check for " + player.getName().getString() + 
+                ": hasVehicle=" + hasVehicle + 
+                ", isPassenger=" + isPassenger + 
+                ", vehicle=" + (vehicle != null ? vehicleType : "null"));
+                
+            return hasVehicle;
         } catch (Exception e) {
+            System.out.println("[AntiCheat DEBUG] Mount check failed for " + player.getName().getString() + 
+                ": " + e.getMessage());
             return false;
         }
     }
@@ -254,31 +279,48 @@ public class MovementAntiCheat {
         // Check if player is mounted or was recently mounting/dismounting
         boolean currentlyMounted = isPlayerMounted(player);
         long currentTime = System.currentTimeMillis();
-
-        // Track mount state changes
+    
+        // Track mount state changes with debug logging
         if (currentlyMounted != data.wasLastMounted) {
+            System.out.println("[AntiCheat DEBUG] Mount state change for " + player.getName().getString() + 
+                ": " + data.wasLastMounted + " -> " + currentlyMounted);
             data.wasLastMounted = currentlyMounted;
             data.lastMountStateChange = currentTime;
         }
-
+    
         boolean inMountTransition = (currentTime - data.lastMountStateChange) < MOUNT_TRANSITION_GRACE;
-
+    
         // Simple speed checking - just max speed + generous wiggle room
-        double maxSpeed = getMaxAllowedSpeed(player) * 2.5; // Very generous for stepping/slabs
-
-        // Apply mount speed adjustments
+        double baseMaxSpeed = getMaxAllowedSpeed(player) * 2.5; // Very generous for stepping/slabs
+        double maxSpeed = baseMaxSpeed;
+    
+        // Apply mount speed adjustments with debug logging
         if (currentlyMounted) {
             maxSpeed *= MOUNT_SPEED_MULTIPLIER; // Allow much faster speeds on mounts
+            System.out.println("[AntiCheat DEBUG] Mounted speed adjustment for " + player.getName().getString() + 
+                ": base=" + String.format("%.3f", baseMaxSpeed) + 
+                ", mounted=" + String.format("%.3f", maxSpeed));
         } else if (inMountTransition) {
             maxSpeed *= 2.0; // Be lenient during mounting/dismounting
+            System.out.println("[AntiCheat DEBUG] Mount transition speed adjustment for " + player.getName().getString() + 
+                ": base=" + String.format("%.3f", baseMaxSpeed) + 
+                ", transition=" + String.format("%.3f", maxSpeed) + 
+                ", timeSinceChange=" + (currentTime - data.lastMountStateChange) + "ms");
         }
+        
+        // Debug every speed check
+        System.out.println("[AntiCheat DEBUG] Speed check for " + player.getName().getString() + 
+            ": distance=" + String.format("%.3f", horizontalDistance) + 
+            ", maxSpeed=" + String.format("%.3f", maxSpeed) + 
+            ", mounted=" + currentlyMounted + 
+            ", inTransition=" + inMountTransition);
         
         if (horizontalDistance > maxSpeed) {
             recordViolation(data, player, String.format("Speed hack: %.3f > %.3f", 
                 horizontalDistance, maxSpeed));
             return true;
         }
-
+    
         // Only check consistency for obviously fast movement
         if (data.positionHistory.size() >= 5 && horizontalDistance > maxSpeed * 0.6) {
             double avgSpeed = calculateAverageSpeed(data, 5);
@@ -287,8 +329,50 @@ public class MovementAntiCheat {
                 return true;
             }
         }
-
+    
         return false;
+    }
+    
+    // Also add this debug version of getMaxAllowedSpeed to see what base speeds are calculated:
+    private double getMaxAllowedSpeed(ServerPlayerEntity player) {
+        double baseSpeed = player.isSprinting() ? MAX_SPRINT_SPEED : MAX_WALK_SPEED;
+        double originalBaseSpeed = baseSpeed;
+    
+        // Status effect modifications with safety checks
+        try {
+            if (player.hasStatusEffect(StatusEffects.SPEED)) {
+                int amplifier = player.getStatusEffect(StatusEffects.SPEED).getAmplifier() + 1;
+                baseSpeed *= (1.0 + 0.2 * Math.min(amplifier, 10)); // Cap amplifier
+            }
+            if (player.hasStatusEffect(StatusEffects.SLOWNESS)) {
+                int amplifier = player.getStatusEffect(StatusEffects.SLOWNESS).getAmplifier() + 1;
+                baseSpeed *= (1.0 - 0.15 * Math.min(amplifier, 10)); // Cap amplifier
+            }
+        } catch (Exception e) {
+            // Fallback if status effect queries fail
+        }
+    
+        if (player.isCreative() || player.isSpectator()) {
+            try {
+                baseSpeed = player.getAbilities().getFlySpeed() * 20;
+            } catch (Exception e) {
+                baseSpeed = MAX_FLY_SPEED * 20; // Fallback
+            }
+        }
+    
+        double finalSpeed = Math.max(baseSpeed, 0.01);
+        
+        // Debug logging every few checks to avoid spam
+        if (Math.random() < 0.1) { // Only log ~10% of speed calculations
+            System.out.println("[AntiCheat DEBUG] Base speed calculation for " + player.getName().getString() + 
+                ": walking=" + MAX_WALK_SPEED + 
+                ", sprinting=" + MAX_SPRINT_SPEED + 
+                ", isSprinting=" + player.isSprinting() + 
+                ", originalBase=" + String.format("%.3f", originalBaseSpeed) + 
+                ", finalBase=" + String.format("%.3f", finalSpeed));
+        }
+        
+        return finalSpeed;
     }
 
     private boolean checkVerticalViolation(ServerPlayerEntity player, PlayerMovementData data,
