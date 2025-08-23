@@ -34,7 +34,9 @@ public class MovementAntiCheat {
     private static final long VIOLATION_RESET_TIME = 300_000;
     private static final int MAX_VIOLATIONS_BEFORE_KICK = 20;
     private static final double LAG_COMPENSATION_MULTIPLIER = 1.3;
-
+    private static final double MOUNT_SPEED_MULTIPLIER = 3.0; // Horses can be 3x faster than walking
+    private static final long MOUNT_TRANSITION_GRACE = 1000; // 1 second grace period
+    
     private final Map<UUID, PlayerMovementData> playerData = new ConcurrentHashMap<>();
 
     private static class PlayerMovementData {
@@ -45,6 +47,9 @@ public class MovementAntiCheat {
         private int violationCount = 0;
         private long lastViolation = 0;
         private boolean wasOnGround = true;
+        private boolean wasLastMounted = false;
+        private long lastMountStateChange = 0;
+        
         private BlockContext lastBlockContext;
     }
 
@@ -132,6 +137,13 @@ public class MovementAntiCheat {
             this.hasClimbable = climbable;
             this.maxStepHeight = stepHeight;
             this.hasObstructions = obstructed;
+        }
+        private boolean isPlayerMounted(ServerPlayerEntity player) {
+            try {
+                return player.hasVehicle();
+            } catch (Exception e) {
+                return false;
+            }
         }
 
         private boolean isSolid(Block block) {
@@ -237,8 +249,27 @@ public class MovementAntiCheat {
     private boolean checkSpeedViolation(ServerPlayerEntity player, PlayerMovementData data,
                                        double horizontalDistance, double verticalDistance,
                                        BlockContext fromContext, BlockContext toContext) {
+        // Check if player is mounted or was recently mounting/dismounting
+        boolean currentlyMounted = isPlayerMounted(player);
+        long currentTime = System.currentTimeMillis();
+
+        // Track mount state changes
+        if (currentlyMounted != data.wasLastMounted) {
+            data.wasLastMounted = currentlyMounted;
+            data.lastMountStateChange = currentTime;
+        }
+
+        boolean inMountTransition = (currentTime - data.lastMountStateChange) < MOUNT_TRANSITION_GRACE;
+
         // Simple speed checking - just max speed + generous wiggle room
         double maxSpeed = getMaxAllowedSpeed(player) * 2.5; // Very generous for stepping/slabs
+
+        // Apply mount speed adjustments
+        if (currentlyMounted) {
+            maxSpeed *= MOUNT_SPEED_MULTIPLIER; // Allow much faster speeds on mounts
+        } else if (inMountTransition) {
+            maxSpeed *= 2.0; // Be lenient during mounting/dismounting
+        }
         
         if (horizontalDistance > maxSpeed) {
             recordViolation(data, player, String.format("Speed hack: %.3f > %.3f", 
@@ -369,8 +400,30 @@ public class MovementAntiCheat {
                                        BlockContext fromContext, BlockContext toContext) {
         if (player.isSpectator()) return false;
 
+        // Allow limited phasing during mount transitions - only within interaction distance
+        PlayerMovementData data = getPlayerData(player.getUuid());
+        long currentTime = System.currentTimeMillis();
+        boolean inMountTransition = (currentTime - data.lastMountStateChange) < MOUNT_TRANSITION_GRACE;
+            
         // Calculate distance for this method
         double distance = fromPos.distanceTo(toPos);
+
+        // If in mount transition, only allow phasing for short distances (mounting range)
+        if (inMountTransition && distance > 6.0) { // MAX_INTERACTION_DISTANCE from your action limiter
+            recordViolation(data, player, "Long-distance phase during mount transition: " + String.format("%.2f", distance));
+            return true;
+        }
+        
+        // For mount transitions within interaction range, allow some phasing but still check for extreme cases
+        if (inMountTransition) {
+            // Only block if trying to phase through many solid blocks (obvious exploit)
+            int solidBlockCount = countSolidBlocksInPath(player, fromPos, toPos);
+            if (solidBlockCount > 3) { // Allow phasing through a few blocks, but not a wall
+                recordViolation(data, player, "Excessive phasing during mount transition through " + solidBlockCount + " blocks");
+                return true;
+            }
+            return false; // Allow limited phasing during mount transitions
+        }
         
         // Only check for significant movements that could be phasing
         if (distance < 0.8) return false;
@@ -406,6 +459,45 @@ public class MovementAntiCheat {
         }
 
         return false;
+    }
+
+    private int countSolidBlocksInPath(ServerPlayerEntity player, Vec3d fromPos, Vec3d toPos) {
+        ServerWorld world = player.getWorld();
+        Vec3d direction = toPos.subtract(fromPos);
+        double pathDistance = direction.length();
+        Vec3d normalized = direction.normalize();
+        int steps = Math.max(5, (int) (pathDistance * 10));
+        Box playerBox = player.getBoundingBox();
+        
+        int solidBlockCount = 0;
+        Set<BlockPos> checkedPositions = new HashSet<>(); // Avoid double-counting same block
+        
+        // Check path for solid blocks
+        for (int i = 1; i < steps; i++) {
+            double progress = (double) i / steps;
+            Vec3d checkPos = fromPos.add(direction.multiply(progress));
+            Box checkBox = playerBox.offset(checkPos.subtract(fromPos));
+    
+            BlockPos blockPos = BlockPos.ofFloored(checkPos.x, checkPos.y, checkPos.z);
+            
+            // Skip if we already checked this block position
+            if (checkedPositions.contains(blockPos)) continue;
+            checkedPositions.add(blockPos);
+            
+            BlockState state = world.getBlockState(blockPos);
+            
+            if (!state.isAir() && state.getBlock() != Blocks.WATER) {
+                VoxelShape shape = state.getCollisionShape(world, blockPos);
+                if (!shape.isEmpty()) {
+                    Box blockBox = shape.getBoundingBox().offset(blockPos);
+                    if (checkBox.intersects(blockBox)) {
+                        solidBlockCount++;
+                    }
+                }
+            }
+        }
+        
+        return solidBlockCount;
     }
 
     private boolean checkJesusViolation(ServerPlayerEntity player, Vec3d position, BlockContext context) {
