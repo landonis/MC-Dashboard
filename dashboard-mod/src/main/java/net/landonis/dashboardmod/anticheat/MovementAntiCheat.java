@@ -65,6 +65,7 @@ public class MovementAntiCheat {
             this.onGround = ground;
             this.yaw = yaw;
         }
+    
     }
 
     /**
@@ -138,13 +139,7 @@ public class MovementAntiCheat {
             this.maxStepHeight = stepHeight;
             this.hasObstructions = obstructed;
         }
-        private boolean isPlayerMounted(ServerPlayerEntity player) {
-            try {
-                return player.hasVehicle();
-            } catch (Exception e) {
-                return false;
-            }
-        }
+
 
         private boolean isSolid(Block block) {
             return block != Blocks.AIR && 
@@ -188,6 +183,13 @@ public class MovementAntiCheat {
         }
     }
 
+    private boolean isPlayerMounted(ServerPlayerEntity player) {
+        try {
+            return player.hasVehicle();
+        } catch (Exception e) {
+            return false;
+        }
+    }
     /**
      * Main movement validation method
      */
