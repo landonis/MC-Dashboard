@@ -270,7 +270,7 @@ public class MovementAntiCheat {
 
         return true;
     }
-
+//TODO move logic for mount transition into the check speed method
     private boolean checkSpeedViolation(ServerPlayerEntity player, PlayerMovementData data,
                                        double horizontalDistance, double verticalDistance,
                                        BlockContext fromContext, BlockContext toContext) {
@@ -299,7 +299,7 @@ public class MovementAntiCheat {
                 ": base=" + String.format("%.3f", baseMaxSpeed) + 
                 ", mounted=" + String.format("%.3f", maxSpeed));
         } else if (inMountTransition) {
-            maxSpeed *= 10.0; // Be lenient during mounting/dismounting
+            maxSpeed *= 20.0; // Be lenient during mounting/dismounting
             System.out.println("[AntiCheat DEBUG] Mount transition speed adjustment for " + player.getName().getString() + 
                 ": base=" + String.format("%.3f", baseMaxSpeed) + 
                 ", transition=" + String.format("%.3f", maxSpeed) + 
