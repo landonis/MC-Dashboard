@@ -201,11 +201,7 @@ public class MovementAntiCheat {
                 // Ignore secondary checks if they fail
             }
             
-            // Debug logging
-            System.out.println("[AntiCheat DEBUG] Mount check for " + player.getName().getString() + 
-                ": hasVehicle=" + hasVehicle + 
-                ", vehicle=" + (vehicle != null ? vehicleType : "null"));
-                
+   
             return hasVehicle;
         } catch (Exception e) {
             System.out.println("[AntiCheat DEBUG] Mount check failed for " + player.getName().getString() + 
@@ -295,25 +291,17 @@ public class MovementAntiCheat {
         // Apply mount speed adjustments with debug logging
         if (currentlyMounted) {
             maxSpeed *= MOUNT_SPEED_MULTIPLIER; // Allow much faster speeds on mounts
-            System.out.println("[AntiCheat DEBUG] Mounted speed adjustment for " + player.getName().getString() + 
-                ": base=" + String.format("%.3f", baseMaxSpeed) + 
-                ", mounted=" + String.format("%.3f", maxSpeed));
         } else if (inMountTransition) {
             maxSpeed *= 20.0; // Be lenient during mounting/dismounting
-            System.out.println("[AntiCheat DEBUG] Mount transition speed adjustment for " + player.getName().getString() + 
-                ": base=" + String.format("%.3f", baseMaxSpeed) + 
-                ", transition=" + String.format("%.3f", maxSpeed) + 
-                ", timeSinceChange=" + (currentTime - data.lastMountStateChange) + "ms");
         }
-        
-        // Debug every speed check
-        System.out.println("[AntiCheat DEBUG] Speed check for " + player.getName().getString() + 
-            ": distance=" + String.format("%.3f", horizontalDistance) + 
-            ", maxSpeed=" + String.format("%.3f", maxSpeed) + 
-            ", mounted=" + currentlyMounted + 
-            ", inTransition=" + inMountTransition);
-        
+            
         if (horizontalDistance > maxSpeed) {
+                    // Debug speed check
+            System.out.println("[AntiCheat DEBUG] Speed check for " + player.getName().getString() + 
+                ": distance=" + String.format("%.3f", horizontalDistance) + 
+                ", maxSpeed=" + String.format("%.3f", maxSpeed) + 
+                ", mounted=" + currentlyMounted + 
+                ", inTransition=" + inMountTransition);
             recordViolation(data, player, String.format("Speed hack: %.3f > %.3f", 
                 horizontalDistance, maxSpeed));
             return true;
@@ -323,6 +311,13 @@ public class MovementAntiCheat {
         if (data.positionHistory.size() >= 5 && horizontalDistance > maxSpeed * 0.6) {
             double avgSpeed = calculateAverageSpeed(data, 5);
             if (avgSpeed > maxSpeed * 0.7) {
+                    // Debug speed check
+                System.out.println("[AntiCheat DEBUG] Speed check for " + player.getName().getString() + 
+                    ": distance=" + String.format("%.3f", horizontalDistance) + 
+                    ", maxSpeed=" + String.format("%.3f", maxSpeed) + 
+                    ",avgSpeed=" + String.format("%.3f", avgSpeed) +
+                    ", mounted=" + currentlyMounted + 
+                    ", inTransition=" + inMountTransition);                
                 recordViolation(data, player, String.format("Consistent high speed: %.3f", avgSpeed));
                 return true;
             }
@@ -358,16 +353,6 @@ public class MovementAntiCheat {
         }
     
         double finalSpeed = Math.max(baseSpeed, 0.01);
-        
-        // Debug logging every few checks to avoid spam
-        if (Math.random() < 0.1) { // Only log ~10% of speed calculations
-            System.out.println("[AntiCheat DEBUG] Base speed calculation for " + player.getName().getString() + 
-                ": walking=" + MAX_WALK_SPEED + 
-                ", sprinting=" + MAX_SPRINT_SPEED + 
-                ", isSprinting=" + player.isSprinting() + 
-                ", originalBase=" + String.format("%.3f", originalBaseSpeed) + 
-                ", finalBase=" + String.format("%.3f", finalSpeed));
-        }
         
         return finalSpeed;
     }
@@ -696,6 +681,7 @@ public class MovementAntiCheat {
         if (data.violationCount > MAX_VIOLATIONS_BEFORE_KICK) {
             try {
                 System.out.println("[AntiCheat] Player " + player.getName().getString() + " should be kicked for violations");
+                removePlayer(player);
             } catch (Exception e) {
                 System.out.println("[AntiCheat] Player should be kicked for violations (name unavailable)");
             }
