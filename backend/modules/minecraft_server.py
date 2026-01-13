@@ -288,7 +288,7 @@ def build_server():
         
         # Download Fabric installer
         build_log.append(f"Downloading Fabric installer for Minecraft {minecraft_version}...")
-        fabric_url = f"https://maven.fabricmc.net/net/fabricmc/fabric-installer/1.1.0/fabric-installer-1.1.0.jar"
+        fabric_url = f"https://maven.fabricmc.net/net/fabricmc/fabric-installer/1.1.1/fabric-installer-1.1.1.jar"
         
         installer_path = f"{MINECRAFT_DIR}/fabric-installer.jar"
         download_result = run_command(f"/usr/bin/curl -L -o '{installer_path}' '{fabric_url}'")
