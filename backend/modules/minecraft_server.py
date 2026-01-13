@@ -1399,7 +1399,8 @@ def get_versions():
     
     except Exception as e:
         logger.error(f"Get versions error: {str(e)}")
-        return jsonify({'error': 'Failed to get versions'}
+        return jsonify({'error': 'Failed to get versions'}), 5
+                       
 
 @minecraft_server_bp.route('/journal', methods=['GET'])
 @admin_required
