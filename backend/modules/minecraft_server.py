@@ -120,7 +120,7 @@ def get_server_status():
         # Get memory usage if running
         memory_info = {}
         if is_running:
-            mem_result = run_command(f"/usr/bin/ps aux | /usr/bin/grep java | /usr/bin/grep -i minecraft | /usr/bin/awk '{print $6}'")
+            mem_result = run_command("/usr/bin/ps aux | /usr/bin/grep java | /usr/bin/grep -i minecraft | /usr/bin/awk '{print $6}'")
             if mem_result['success'] and mem_result['stdout'].strip():
                 try:
                     memory_kb = int(mem_result['stdout'].strip())
