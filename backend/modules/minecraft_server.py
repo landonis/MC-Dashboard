@@ -827,6 +827,514 @@ WantedBy=multi-user.target"""
             'log': build_log if 'build_log' in locals() else []
         }), 500
 
+import os
+import subprocess
+import json
+import requests
+from datetime import datetime
+from flask import Blueprint, request, jsonify
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from functools import wraps
+import logging
+
+logger = logging.getLogger(__name__)
+
+from dotenv import load_dotenv
+load_dotenv()
+
+MINECRAFT_DIR = os.getenv("MINECRAFT_DIR", "/opt/minecraft")
+MINECRAFT_USER = os.getenv("MINECRAFT_USER", "minecraft")
+
+JAVA_EXEC = "/usr/bin/java"
+SYSTEMCTL_EXEC = "/usr/bin/systemctl"
+
+# Create blueprint
+minecraft_server_bp = Blueprint('minecraft_server', __name__, url_prefix='/server')
+
+def get_minecraft_server_jar_url(version: str) -> str:
+    """Get download URL for Minecraft server jar from Mojang API"""
+    try:
+        manifest_url = "https://launchermeta.mojang.com/mc/game/version_manifest.json"
+        manifest = requests.get(manifest_url, timeout=10).json()
+
+        version_info = next((v for v in manifest["versions"] if v["id"] == version), None)
+        if not version_info:
+            raise ValueError(f"Version {version} not found in Mojang manifest")
+
+        version_metadata = requests.get(version_info["url"], timeout=10).json()
+        return version_metadata["downloads"]["server"]["url"]
+    except Exception as e:
+        raise RuntimeError(f"Failed to get server.jar URL for {version}: {e}")
+
+def admin_required(f):
+    """Decorator to require admin role for endpoints"""
+    @wraps(f)
+    @jwt_required()
+    def decorated_function(*args, **kwargs):
+        from models import User
+        current_user_id = get_jwt_identity()
+        user = User.query.get(current_user_id)
+        if not user or user.role != 'admin':
+            return jsonify({'error': 'Admin access required'}), 403
+        return f(*args, **kwargs)
+    return decorated_function
+
+def run_command(cmd, cwd=None):
+    """Run shell command safely and return result"""
+    try:
+        env = os.environ.copy()
+        env["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+        result = subprocess.run(
+            cmd, 
+            shell=True, 
+            capture_output=True, 
+            text=True, 
+            cwd=cwd,
+            timeout=300
+        )
+        
+        return {
+            'success': result.returncode == 0,
+            'stdout': result.stdout,
+            'stderr': result.stderr,
+            'returncode': result.returncode
+        }
+    except subprocess.TimeoutExpired:
+        return {
+            'success': False,
+            'stdout': '',
+            'stderr': 'Command timed out',
+            'returncode': -1
+        }
+    except Exception as e:
+        return {
+            'success': False,
+            'stdout': '',
+            'stderr': str(e),
+            'returncode': -1
+        }
+
+def get_directory_size(path):
+    """Get directory size in MB"""
+    try:
+        total_bytes = 0
+        for dirpath, dirnames, filenames in os.walk(path):
+            for f in filenames:
+                fp = os.path.join(dirpath, f)
+                try:
+                    total_bytes += os.path.getsize(fp)
+                except Exception as fe:
+                    logger.debug(f"Skipping {fp}: {fe}")
+
+        total_mb = round(total_bytes / (1024 * 1024), 2)
+        logger.debug(f"[walk] Calculated size for {path}: {total_mb} MB")
+        return total_mb
+    except Exception as e:
+        logger.error(f"[walk] Failed to calculate size of {path}: {e}")
+        return 0
+
+def check_service_enabled():
+    """Check if minecraft service is enabled"""
+    try:
+        result = run_command(f"{SYSTEMCTL_EXEC} is-enabled minecraft.service")
+        return result['success'] and result['stdout'].strip() == 'enabled'
+    except:
+        return False
+
+def get_current_memory_allocation():
+    """Get current memory allocation from systemd service file"""
+    try:
+        service_path = '/etc/systemd/system/minecraft.service'
+        if os.path.exists(service_path):
+            with open(service_path, 'r') as f:
+                content = f.read()
+                # Look for -Xmx pattern
+                import re
+                match = re.search(r'-Xmx(\d+)G', content)
+                if match:
+                    return int(match.group(1))
+        return 10  # Default fallback
+    except Exception as e:
+        logger.error(f"Failed to get current memory allocation: {e}")
+        return 10
+
+@minecraft_server_bp.route('/status', methods=['GET'])
+@admin_required
+def get_server_status():
+    """Get Minecraft server status"""
+    try:
+        # Check systemctl status
+        status_result = run_command(f"{SYSTEMCTL_EXEC} is-active minecraft.service")
+        is_running = status_result['success'] and status_result['stdout'].strip() == 'active'
+        
+        # Get detailed status
+        detail_result = run_command(f"{SYSTEMCTL_EXEC} status minecraft.service --no-pager -l")
+        
+        # Check if server directory exists
+        service_exists = os.path.exists('/etc/systemd/system/minecraft.service')
+        server_exists = os.path.exists(f"{MINECRAFT_DIR}/fabric-server-launch.jar") and service_exists
+        
+        # Get world info if server exists
+        world_info = {}
+        if server_exists:
+            world_path = os.path.join(MINECRAFT_DIR, "world")
+            if os.path.exists(world_path):
+                world_info = {
+                    'exists': True,
+                    'name': 'world',
+                    'size': get_directory_size(world_path)
+                }
+            else:
+                world_info = {'exists': False}
+        
+        # Get memory usage if running
+        memory_info = {}
+        if is_running:
+            mem_result = run_command("/usr/bin/ps aux | /usr/bin/grep java | /usr/bin/grep -i minecraft | /usr/bin/awk '{print $6}'")
+            if mem_result['success'] and mem_result['stdout'].strip():
+                try:
+                    memory_kb = int(mem_result['stdout'].strip())
+                    memory_info = {
+                        'used_mb': round(memory_kb / 1024, 2),
+                        'used_gb': round(memory_kb / (1024 * 1024), 2)
+                    }
+                except ValueError:
+                    memory_info = {'used_mb': 0, 'used_gb': 0}
+        
+        return jsonify({
+            'running': is_running,
+            'server_exists': server_exists,
+            'world_info': world_info,
+            'memory_info': memory_info,
+            'status_output': detail_result['stdout'],
+            'service_enabled': check_service_enabled()
+        })
+    
+    except Exception as e:
+        logger.error(f"Status error: {str(e)}")
+        return jsonify({'error': 'Failed to get server status'}), 500
+
+@minecraft_server_bp.route('/enable', methods=['POST'])
+@admin_required
+def enable_service():
+    """Enable the Minecraft systemd service"""
+    try:
+        run_command(f"/bin/sudo {SYSTEMCTL_EXEC} daemon-reload")
+        result = run_command(f"/bin/sudo {SYSTEMCTL_EXEC} enable minecraft.service")
+
+        if result['success']:
+            return jsonify({'message': 'Minecraft service enabled successfully'})
+        else:
+            return jsonify({'error': f"Failed to enable service: {result['stderr']}"}), 500
+
+    except Exception as e:
+        logger.error(f"Enable service error: {str(e)}")
+        return jsonify({'error': f"Failed to enable service: {e}"}), 500
+
+@minecraft_server_bp.route('/disable', methods=['POST'])
+@admin_required
+def disable_service():
+    """Disable the Minecraft systemd service"""
+    try:
+        run_command(f"/bin/sudo {SYSTEMCTL_EXEC} daemon-reload")
+        result = run_command(f"/bin/sudo {SYSTEMCTL_EXEC} disable minecraft.service")
+
+        if result['success']:
+            return jsonify({'message': 'Minecraft service disabled successfully'})
+        else:
+            return jsonify({'error': f'Failed to disable service: {result["stderr"]}'}), 500
+
+    except Exception as e:
+        logger.error(f"Disable service error: {str(e)}")
+        return jsonify({'error': 'Failed to disable service'}), 500
+
+@minecraft_server_bp.route('/start', methods=['POST'])
+@admin_required
+def start_server():
+    """Start Minecraft server"""
+    try:
+        if not os.path.exists(MINECRAFT_DIR):
+            return jsonify({'error': 'Server not built yet'}), 400
+        
+        if not os.path.exists(f"{MINECRAFT_DIR}/fabric-server-launch.jar"):
+            return jsonify({'error': 'Server jar file not found'}), 400
+        
+        result = run_command(f"/bin/sudo {SYSTEMCTL_EXEC} start minecraft.service")
+        
+        if result['success']:
+            return jsonify({'message': 'Server started successfully'})
+        else:
+            return jsonify({
+                'error': f'Failed to start server: {result["stderr"]}'
+            }), 500
+    
+    except Exception as e:
+        logger.error(f"Start server error: {str(e)}")
+        return jsonify({'error': f'Failed to start server: {str(e)}'}), 500
+
+@minecraft_server_bp.route('/stop', methods=['POST'])
+@admin_required
+def stop_server():
+    """Stop Minecraft server"""
+    try:
+        result = run_command(f"/bin/sudo {SYSTEMCTL_EXEC} stop minecraft.service")
+        
+        if result['success']:
+            return jsonify({'message': 'Server stopped successfully'})
+        else:
+            return jsonify({
+                'error': f'Failed to stop server: {result["stderr"]}'
+            }), 500
+    
+    except Exception as e:
+        logger.error(f"Stop server error: {str(e)}")
+        return jsonify({'error': 'Failed to stop server'}), 500
+
+@minecraft_server_bp.route('/restart', methods=['POST'])
+@admin_required
+def restart_server():
+    """Restart Minecraft server with optional memory update"""
+    try:
+        data = request.get_json() or {}
+        
+        # Get memory from request or use current allocation
+        memory_gb = data.get('memory_gb')
+        if memory_gb is None:
+            memory_gb = get_current_memory_allocation()
+        
+        # Validate memory
+        memory_gb = max(1, min(int(memory_gb), 64))  # Between 1-64GB
+        
+        # Create/update systemd service with new memory setting
+        service_content = f"""[Unit]
+Description=Minecraft Server
+After=network.target
+
+[Service]
+Type=simple
+User={MINECRAFT_USER}
+Group={MINECRAFT_USER}
+WorkingDirectory={MINECRAFT_DIR}
+ExecStart={JAVA_EXEC} -Xmx{memory_gb}G -jar {MINECRAFT_DIR}/fabric-server-launch.jar nogui
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target"""
+        
+        temp_path = "/tmp/minecraft.service"
+        with open(temp_path, "w") as f:
+            f.write(service_content)
+        
+        run_command(f"/bin/sudo /bin/mv {temp_path} /etc/systemd/system/minecraft.service")
+        run_command(f"/bin/sudo {SYSTEMCTL_EXEC} daemon-reload")
+        
+        result = run_command(f"/bin/sudo {SYSTEMCTL_EXEC} restart minecraft.service")
+        
+        if result['success']:
+            return jsonify({
+                'message': 'Server restarted successfully',
+                'memory_gb': memory_gb
+            })
+        else:
+            return jsonify({
+                'error': f'Failed to restart server: {result["stderr"]}'
+            }), 500
+    
+    except Exception as e:
+        logger.error(f"Restart server error: {str(e)}")
+        return jsonify({'error': 'Failed to restart server'}), 500
+
+@minecraft_server_bp.route('/build', methods=['POST'])
+@admin_required
+def build_server():
+    """Build new Minecraft server"""
+    try:
+        data = request.get_json()
+        minecraft_version = data.get('minecraft_version', '1.21.4')
+        fabric_version = data.get('fabric_version', '0.18.4')
+        memory_gb = data.get('memory_gb', 10)
+        
+        # Validate memory allocation
+        memory_gb = max(1, min(int(memory_gb), 64))
+        
+        build_log = []
+        
+        # Stop existing server if running
+        build_log.append("Stopping existing server...")
+        run_command(f"/bin/sudo {SYSTEMCTL_EXEC} stop minecraft.service")
+        
+        # Ensure minecraft directory exists
+        build_log.append("Setting up minecraft directory...")
+        mkdir_result = run_command(f"/bin/mkdir -p {MINECRAFT_DIR}")
+        if not mkdir_result['success']:
+            return jsonify({
+                'error': f'Failed to create minecraft directory: {mkdir_result["stderr"]}',
+                'log': build_log
+            }), 500
+        
+        # Download Minecraft server jar directly (prevents version mismatch)
+        build_log.append(f"Downloading Minecraft {minecraft_version} server jar...")
+        try:
+            mc_server_url = get_minecraft_server_jar_url(minecraft_version)
+            build_log.append(f"Server jar URL: {mc_server_url}")
+        except Exception as e:
+            return jsonify({
+                'error': f'Failed to get Minecraft server URL: {str(e)}',
+                'log': build_log
+            }), 500
+        
+        mc_server_path = f"{MINECRAFT_DIR}/server.jar"
+        download_mc_result = run_command(f"/usr/bin/curl -L -o '{mc_server_path}' '{mc_server_url}'", cwd=MINECRAFT_DIR)
+        
+        if not download_mc_result['success']:
+            return jsonify({
+                'error': f'Failed to download Minecraft server jar: {download_mc_result["stderr"]}',
+                'log': build_log
+            }), 500
+        
+        # Verify Minecraft server jar was downloaded
+        if not os.path.exists(mc_server_path):
+            return jsonify({
+                'error': 'Minecraft server.jar not found after download',
+                'log': build_log
+            }), 500
+        
+        build_log.append(f"Minecraft {minecraft_version} server jar downloaded successfully")
+        
+        # Download Fabric installer
+        build_log.append(f"Downloading Fabric installer...")
+        fabric_installer_url = "https://maven.fabricmc.net/net/fabricmc/fabric-installer/1.1.1/fabric-installer-1.1.1.jar"
+        
+        installer_path = f"{MINECRAFT_DIR}/fabric-installer.jar"
+        download_result = run_command(f"/usr/bin/curl -L -o '{installer_path}' '{fabric_installer_url}'")
+        
+        if not download_result['success']:
+            return jsonify({
+                'error': f'Failed to download Fabric installer: {download_result["stderr"]}',
+                'log': build_log
+            }), 500
+        
+        # Verify installer was downloaded
+        if not os.path.exists(installer_path):
+            return jsonify({
+                'error': 'Fabric installer file not found after download',
+                'log': build_log
+            }), 500
+        
+        build_log.append(f"Installing Fabric loader {fabric_version}...")
+        
+        # Run Fabric installer WITHOUT -downloadMinecraft (we already have server.jar)
+        install_cmd = (
+            f"{JAVA_EXEC} -jar {installer_path} server "
+            f"-mcversion {minecraft_version} "
+            f"-loader {fabric_version} "
+            f"-dir {MINECRAFT_DIR}"
+        )
+        
+        install_result = run_command(install_cmd, cwd=MINECRAFT_DIR)
+        
+        if not install_result['success']:
+            return jsonify({
+                'error': f'Failed to install Fabric loader: {install_result["stderr"]}',
+                'log': build_log,
+                'stdout': install_result['stdout']
+            }), 500
+        
+        # Verify the server jar was created
+        if not os.path.exists(f'{MINECRAFT_DIR}/fabric-server-launch.jar'):
+            return jsonify({
+                'error': 'fabric-server-launch.jar was not created by installer. Check Minecraft and Fabric versions are compatible.',
+                'log': build_log,
+                'install_output': install_result['stdout']
+            }), 500
+        
+        build_log.append("Fabric server installed successfully!")
+        
+        # Accept EULA
+        build_log.append("Accepting Minecraft EULA...")
+        eula_path = f'{MINECRAFT_DIR}/eula.txt'
+        with open(eula_path, 'w') as f:
+            f.write('eula=true\n')
+        
+        # Create server.properties
+        build_log.append("Creating server configuration...")
+        server_properties = """server-port=25565
+gamemode=survival
+difficulty=normal
+spawn-protection=16
+max-players=20
+online-mode=true
+white-list=false
+motd=Minecraft Server managed by Dashboard"""
+        
+        with open(f'{MINECRAFT_DIR}/server.properties', 'w') as f:
+            f.write(server_properties)
+        
+        # Create systemd service
+        build_log.append("Creating systemd service...")
+        service_content = f"""[Unit]
+Description=Minecraft Server
+After=network.target
+
+[Service]
+Type=simple
+User={MINECRAFT_USER}
+Group={MINECRAFT_USER}
+WorkingDirectory={MINECRAFT_DIR}
+ExecStart={JAVA_EXEC} -Xmx{memory_gb}G -jar {MINECRAFT_DIR}/fabric-server-launch.jar nogui
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target"""
+        
+        temp_path = "/tmp/minecraft.service"
+        with open(temp_path, "w") as f:
+            f.write(service_content)
+        
+        mv_result = run_command(f"/bin/sudo /bin/mv {temp_path} /etc/systemd/system/minecraft.service")
+        if not mv_result['success']:
+            return jsonify({
+                'error': f'Failed to create systemd service: {mv_result["stderr"]}',
+                'log': build_log
+            }), 500
+        
+        # Set permissions
+        build_log.append("Setting permissions...")
+        run_command(f"/bin/chown -R {MINECRAFT_USER}:{MINECRAFT_USER} {MINECRAFT_DIR}")
+        run_command(f"/bin/chmod -R 755 {MINECRAFT_DIR}")
+        
+        # Reload systemd and enable service
+        build_log.append("Enabling systemd service...")
+        run_command(f"/bin/sudo {SYSTEMCTL_EXEC} daemon-reload")
+        enable_result = run_command(f"/bin/sudo {SYSTEMCTL_EXEC} enable minecraft.service")
+        
+        if not enable_result['success']:
+            build_log.append(f"Warning: Failed to enable service: {enable_result['stderr']}")
+        
+        build_log.append("Server build completed successfully!")
+        
+        return jsonify({
+            'message': 'Server built successfully',
+            'log': build_log,
+            'minecraft_version': minecraft_version,
+            'fabric_version': fabric_version,
+            'memory_gb': memory_gb
+        })
+    
+    except Exception as e:
+        logger.error(f"Build server error: {str(e)}")
+        return jsonify({
+            'error': f'Build failed: {str(e)}',
+            'log': build_log if 'build_log' in locals() else []
+        }), 500
+
 @minecraft_server_bp.route('/versions', methods=['GET'])
 @admin_required
 def get_versions():
@@ -839,21 +1347,25 @@ def get_versions():
             if response.status_code == 200:
                 data = response.json()
                 # Get release versions only (not snapshots)
-                minecraft_versions = [
+                all_releases = [
                     version['id'] for version in data['versions'] 
                     if version['type'] == 'release'
-                ][:20]  # Limit to latest 20 releases
+                ]
+                # Put recommended versions first, then the rest
+                recommended = ['1.21.7', '1.21.6', '1.20.4', '1.20.1']
+                minecraft_versions = recommended + [v for v in all_releases if v not in recommended]
+                minecraft_versions = minecraft_versions[:20]  # Limit to 20 total
             else:
                 # Fallback versions if API fails
                 minecraft_versions = [
-                    '1.21.7', '1.21.6', '1.21.5', '1.21.4', '1.21.3',
-                    '1.21.2', '1.21.1', '1.21', '1.20.4', '1.20.3'
+                    '1.21.7', '1.21.6', '1.20.4', '1.20.1',
+                    '1.21.8', '1.21.5', '1.21.4', '1.21.3'
                 ]
         except Exception as e:
             logger.warning(f"Failed to fetch Minecraft versions: {str(e)}")
             minecraft_versions = [
-                '1.21.7', '1.21.6', '1.21.5', '1.21.4', '1.21.3',
-                '1.21.2', '1.21.1', '1.21', '1.20.4', '1.20.3'
+                '1.21.7', '1.21.6', '1.20.4', '1.20.1',
+                '1.21.8', '1.21.5', '1.21.4', '1.21.3'
             ]
         
         # Get Fabric versions from Fabric API
@@ -887,7 +1399,7 @@ def get_versions():
     
     except Exception as e:
         logger.error(f"Get versions error: {str(e)}")
-        return jsonify({'error': 'Failed to get versions'}), 500
+        return jsonify({'error': 'Failed to get versions'}
 
 @minecraft_server_bp.route('/journal', methods=['GET'])
 @admin_required
