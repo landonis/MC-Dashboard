@@ -120,7 +120,7 @@ def get_server_status():
         # Get memory usage if running
         memory_info = {}
         if is_running:
-            mem_result = run_command("/usr/bin/ps aux | /usr/bin/grep java | /usr/bin/grep -i minecraft | /usr/bin/awk '{print $6}'")
+            mem_result = run_command(f"/usr/bin/ps aux | /usr/bin/grep java | /usr/bin/grep -i minecraft | /usr/bin/awk '{print $6}'")
             if mem_result['success'] and mem_result['stdout'].strip():
                 try:
                     memory_kb = int(mem_result['stdout'].strip())
@@ -360,8 +360,8 @@ WantedBy=multi-user.target
         
         # Reload systemd and enable service
         build_log.append("Enabling systemd service...")
-        run_command("/bin/sudo {SYSTEMCTL_EXEC} daemon-reload")
-        run_command("/bin/sudo {SYSTEMCTL_EXEC} enable minecraft.service")
+        run_command(f"/bin/sudo {SYSTEMCTL_EXEC} daemon-reload")
+        run_command(f"/bin/sudo {SYSTEMCTL_EXEC} enable minecraft.service")
 
 
         
@@ -469,7 +469,7 @@ def get_directory_size(path):
 def check_service_enabled():
     """Check if minecraft service is enabled"""
     try:
-        result = run_command("{SYSTEMCTL_EXEC} is-enabled minecraft.service")
+        result = run_command(f"{SYSTEMCTL_EXEC} is-enabled minecraft.service")
         return result['success'] and result['stdout'].strip() == 'enabled'
     except:
         return False
