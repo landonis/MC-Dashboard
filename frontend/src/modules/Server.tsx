@@ -75,20 +75,26 @@ const Server: React.FC = () => {
   const [autoRefresh, setAutoRefresh] = useState(false)
   const [showJournalFilters, setShowJournalFilters] = useState(false)
 
-  useEffect(() => {
-    if (hasRole('admin')) {
-      fetchStatus()
-      fetchVersions()
-      if (versions) {
-        // Set defaults to the first available versions, or specific known-good versions
-        const defaultMinecraft = versions.minecraft_versions.includes('1.21.7') 
-          ? '1.21.7' 
-          : versions.minecraft_versions[0]
-        
-        const defaultFabric = versions.fabric_versions.includes('0.18.4')
-          ? '0.18.4'
-          : versions.fabric_versions[0]
+useEffect(() => {
+  if (hasRole('admin')) {
+    fetchStatus()
+    fetchVersions()
+    fetchJournal()
+  }
+}, [])
+
+// Separate useEffect for setting buildConfig defaults when versions load
+useEffect(() => {
+  if (versions) {
+    // Set defaults to the first available versions, or specific known-good versions
+    const defaultMinecraft = versions.minecraft_versions.includes('1.21.7') 
+      ? '1.21.7' 
+      : versions.minecraft_versions[0]
     
+    const defaultFabric = versions.fabric_versions.includes('0.18.4')
+      ? '0.18.4'
+      : versions.fabric_versions[0]
+
     setBuildConfig({
       minecraft_version: defaultMinecraft,
       fabric_version: defaultFabric,
@@ -96,22 +102,19 @@ const Server: React.FC = () => {
     })
   }
 }, [versions])
-      fetchJournal()
-    }
-  }, [])
 
-  // Auto-refresh journal when enabled
-  useEffect(() => {
-    let interval: NodeJS.Timeout
-    if (autoRefresh && status?.running) {
-      interval = setInterval(() => {
-        fetchJournal(50, journalFilter, true) // Use recent endpoint with 50 lines
-      }, 5000) // Refresh every 5 seconds
-    }
-    return () => {
-      if (interval) clearInterval(interval)
-    }
-  }, [autoRefresh, status?.running, journalFilter])
+// Auto-refresh journal when enabled
+useEffect(() => {
+  let interval: NodeJS.Timeout
+  if (autoRefresh && status?.running) {
+    interval = setInterval(() => {
+      fetchJournal(50, journalFilter, true)
+    }, 5000)
+  }
+  return () => {
+    if (interval) clearInterval(interval)
+  }
+}, [autoRefresh, status?.running, journalFilter])
 
   const fetchStatus = async () => {
     try {
