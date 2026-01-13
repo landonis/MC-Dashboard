@@ -79,6 +79,23 @@ const Server: React.FC = () => {
     if (hasRole('admin')) {
       fetchStatus()
       fetchVersions()
+      if (versions) {
+        // Set defaults to the first available versions, or specific known-good versions
+        const defaultMinecraft = versions.minecraft_versions.includes('1.21.7') 
+          ? '1.21.7' 
+          : versions.minecraft_versions[0]
+        
+        const defaultFabric = versions.fabric_versions.includes('0.18.4')
+          ? '0.18.4'
+          : versions.fabric_versions[0]
+    
+    setBuildConfig({
+      minecraft_version: defaultMinecraft,
+      fabric_version: defaultFabric,
+      memory_gb: 10
+    })
+  }
+}, [versions])
       fetchJournal()
     }
   }, [])
