@@ -33,10 +33,15 @@ def get_minecraft_server_jar_url(version: str) -> str:
             raise ValueError(f"Version {version} not found in Mojang manifest")
 
         version_metadata = requests.get(version_info["url"], timeout=10).json()
-        return version_metadata["downloads"]["server"]["url"]
+        
+        # Get the server download info
+        if "downloads" not in version_metadata or "server" not in version_metadata["downloads"]:
+            raise ValueError(f"No server download available for version {version}")
+        
+        server_info = version_metadata["downloads"]["server"]
+        return server_info["url"]
     except Exception as e:
         raise RuntimeError(f"Failed to get server.jar URL for {version}: {e}")
-
 def admin_required(f):
     """Decorator to require admin role for endpoints"""
     @wraps(f)
