@@ -39,6 +39,7 @@ def get_minecraft_server_jar_url(version: str) -> str:
             raise ValueError(f"No server download available for version {version}")
         
         server_info = version_metadata["downloads"]["server"]
+        logger.debug(f"server URL: {server_info['url']}")
         return server_info["url"]
     except Exception as e:
         raise RuntimeError(f"Failed to get server.jar URL for {version}: {e}")
